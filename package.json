@@ -25,7 +25,7 @@
     "test": "node --test test/*.js"
   },
   "dependencies": {
-    "@electron/asar": "^3.4.1",
+    "@electron/asar": "^4.2.1",
     "electron-chrome-extensions": "^4.9.0",
     "yauzl": "^3.4.0"
   },
