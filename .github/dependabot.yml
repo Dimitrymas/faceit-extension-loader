@@ -5,6 +5,11 @@ updates:
     schedule:
       interval: monthly
     target-branch: dev
+    ignore:
+      # The patch payload runs on FACEIT's bundled Electron/Node runtime.
+      - dependency-name: "@electron/asar"
+        update-types:
+          - "version-update:semver-major"
   - package-ecosystem: github-actions
     directory: /
     schedule:
