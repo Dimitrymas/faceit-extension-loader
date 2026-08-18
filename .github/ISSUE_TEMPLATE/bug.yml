@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a loader, setup, restore, or manager failure.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach FACEIT binaries, app.asar files, account cookies, tokens, or personal data.
+  - type: input
+    id: loader-version
+    attributes:
+      label: Loader version
+      placeholder: 0.3.0-beta.21
+    validations:
+      required: true
+  - type: input
+    id: faceit-version
+    attributes:
+      label: FACEIT version
+      placeholder: 2.9.0
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Setup or patch
+        - Restore
+        - Automatic FACEIT update
+        - Extension installation
+        - Extension compatibility
+        - Mods interface
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include the smallest repeatable sequence.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      description: Paste the manager's copied diagnostics after removing usernames and paths if needed.
+      render: text

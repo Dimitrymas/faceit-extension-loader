@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "extensions": [
+    {
+      "path": "C:\\Users\\you\\Desktop\\unpacked-extension",
+      "enabled": true,
+      "allowFileAccess": false
+    }
+  ]
+}

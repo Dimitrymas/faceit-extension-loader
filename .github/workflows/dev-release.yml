@@ -1,0 +1,66 @@
+name: Development Release
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: development-release
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: publish-dev-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Windows cross-compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes binutils-mingw-w64-x86-64 gcc-mingw-w64-x86-64
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set development version
+        id: version
+        run: |
+          BASE_VERSION=$(node -p "require('./package.json').version.split('-')[0]")
+          DEV_VERSION="${BASE_VERSION}-dev.${GITHUB_RUN_NUMBER}"
+          npm version "$DEV_VERSION" --no-git-tag-version
+          echo "value=$DEV_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Test and build
+        run: |
+          npm test
+          npm run build:win-installer
+
+      - name: Replace rolling development release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEV_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          EXE="dist/FACEIT-Mods-Setup-${DEV_VERSION}-x64.exe"
+          CHECKSUM="${EXE}.sha256"
+          gh release delete dev-latest --cleanup-tag --yes || true
+          git push origin :refs/tags/dev-latest || true
+          gh release create dev-latest "$EXE" "$CHECKSUM" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Development build ${DEV_VERSION}" \
+            --notes "Automated development build from dev at ${GITHUB_SHA}. Unsigned and intended for testing only."

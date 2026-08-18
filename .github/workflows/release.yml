@@ -1,0 +1,60 @@
+name: Versioned Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: publish-versioned-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate tag and package version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          test "$VERSION" = "$PACKAGE_VERSION"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install Windows cross-compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes binutils-mingw-w64-x86-64 gcc-mingw-w64-x86-64
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test and build
+        run: |
+          npm test
+          npm run build:win-installer
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          EXE="dist/FACEIT-Mods-Setup-${VERSION}-x64.exe"
+          CHECKSUM="${EXE}.sha256"
+          FLAGS=()
+          if [[ "$VERSION" == *-* ]]; then FLAGS+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" "$EXE" "$CHECKSUM" \
+            --verify-tag \
+            --generate-notes \
+            --title "FACEIT Extension Loader ${GITHUB_REF_NAME}" \
+            "${FLAGS[@]}"

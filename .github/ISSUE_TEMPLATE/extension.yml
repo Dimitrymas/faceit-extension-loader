@@ -1,0 +1,29 @@
+name: Extension compatibility
+description: Report a Chrome extension API or popup compatibility problem.
+title: "[Extension] "
+labels: [compatibility]
+body:
+  - type: input
+    id: extension
+    attributes:
+      label: Chrome Web Store link or extension ID
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Broken behavior
+      description: Explain what works in Chrome and what differs inside FACEIT.
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Sanitized console error
+      render: text
