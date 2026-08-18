@@ -1,8 +1,8 @@
 {
   "name": "faceit-extension-loader",
-  "version": "0.3.0-beta.22",
+  "version": "0.3.0-beta.23",
   "private": true,
-  "description": "Experimental extension loader and mod manager for the FACEIT desktop client.",
+  "description": "Install and manage compatible Chrome extensions in the FACEIT desktop client.",
   "license": "GPL-3.0-only",
   "type": "commonjs",
   "repository": {
@@ -20,6 +20,7 @@
     "clean": "node ./scripts/clean.js",
     "build:win-portable": "node ./scripts/build-win-portable.js",
     "build:win-installer": "node ./scripts/build-win-installer.js",
+    "release:notes": "node ./scripts/release-notes.js",
     "patch": "node ./bin/faceit-extension-loader.js patch",
     "inspect": "node ./bin/faceit-extension-loader.js inspect",
     "test": "node --test test/*.js"

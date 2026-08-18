@@ -86,7 +86,7 @@ function installGlobalHandlers() {
 function installDeepLinkListener() {
   if (!ipcRenderer || typeof ipcRenderer.on !== 'function') return;
   ipcRenderer.on(IPC_DEEP_LINK, (_event, details) => {
-    logRenderer('install deep link received', details);
+    logRenderer('deep link received', details);
     runtimeState.pendingInstallToken = null;
     refreshState();
   });
@@ -526,8 +526,8 @@ async function refreshState(options = {}) {
   try {
     if (!ipcRenderer || typeof ipcRenderer.invoke !== 'function') throw new Error('FACEIT Mods bridge is unavailable');
     runtimeState.latestState = await ipcRenderer.invoke(IPC_GET_STATE);
-    revealPendingInstall(runtimeState.latestState);
     renderPanelState(runtimeState.latestState);
+    await revealPendingDeepLink(runtimeState.latestState);
     logRenderer('state refreshed', summarizeState(runtimeState.latestState));
   } catch (error) {
     renderFatalError(error);
@@ -538,12 +538,38 @@ async function refreshState(options = {}) {
   }
 }
 
-function revealPendingInstall(state) {
-  const request = state && state.pendingInstall;
+async function revealPendingDeepLink(state) {
+  const installRequest = state && state.pendingInstall;
+  if (installRequest && installRequest.token && installRequest.token !== runtimeState.pendingInstallToken) {
+    runtimeState.pendingInstallToken = installRequest.token;
+    runtimeState.activeView = 'install-request';
+    setPanelOpen(true);
+    renderPanelState(state);
+    return;
+  }
+  const request = state && state.pendingNavigation;
   if (!request || !request.token || request.token === runtimeState.pendingInstallToken) return;
   runtimeState.pendingInstallToken = request.token;
-  runtimeState.activeView = 'install-request';
+  runtimeState.activeView = 'installed';
   setPanelOpen(true);
+  renderPanelState(state);
+  const acknowledged = await runManagerOperation({ operation: 'ack-deeplink', token: request.token }, { requiresReload: false });
+  if (!acknowledged || request.action !== 'launch') return;
+  const extensions = Array.isArray(runtimeState.latestState && runtimeState.latestState.extensions)
+    ? runtimeState.latestState.extensions
+    : [];
+  const extension = extensions.find((candidate) => candidate && (
+    candidate.marketplaceId === request.target || candidate.id === request.target
+  ));
+  if (!extension) {
+    showToast('That extension is not installed.', 'error');
+    return;
+  }
+  if (extension.state !== 'loaded' || !extension.hasAction) {
+    showToast('That extension does not have an available action.', 'error');
+    return;
+  }
+  await openExtensionAction(extension, 'deeplink');
 }
 
 function renderPanelState(state) {
@@ -555,7 +581,10 @@ function renderPanelState(state) {
     closeEmbeddedExtensionPopup();
   }
   const active = extensions.filter((extension) => extension && extension.state === 'loaded').length;
-  setText('[data-role="header-status"]', extensions.length ? `${active} active · ${extensions.length} total` : 'No extensions');
+  const loaderVersion = state.loader && state.loader.version ? `Loader ${state.loader.version}` : 'Loader version unknown';
+  setText('[data-role="header-status"]', extensions.length
+    ? `${loaderVersion} · ${active}/${extensions.length} active`
+    : `${loaderVersion} · No extensions`);
   setText('[data-role="installed-count"]', extensions.length);
   runtimeState.panelRoot.querySelectorAll('[data-view]').forEach((button) => button.setAttribute('data-active', button.dataset.view === runtimeState.activeView ? 'true' : 'false'));
   const tabs = runtimeState.panelRoot.querySelector('[data-role="tabs"]');
@@ -884,10 +913,16 @@ function createInstalledRow(extension, state) {
   reload.dataset.compactHide = 'true';
   reload.disabled = busy;
   reload.addEventListener('click', () => runExtensionOperation(extension, { operation: 'reload' }, 'Mod reloaded.'));
+  const shortcut = createIconButton('monitor-down', 'Create desktop shortcut');
+  shortcut.dataset.compactHide = 'true';
+  shortcut.disabled = busy;
+  shortcut.addEventListener('click', () => runExtensionOperation(extension, { operation: 'create-shortcut' }, 'Desktop shortcut created.', false));
   const remove = createIconButton('trash', 'Remove mod');
   remove.disabled = busy;
   remove.addEventListener('click', () => confirmRemoveExtension(extension));
-  controls.append(reload, remove, createExtensionToggle(extension, busy));
+  controls.append(reload);
+  if (state.capabilities && state.capabilities.desktopShortcuts && extension.id) controls.append(shortcut);
+  controls.append(remove, createExtensionToggle(extension, busy));
   row.appendChild(controls);
   return row;
 }
@@ -935,7 +970,9 @@ function renderInstallRequestScreen(state) {
   const notice = document.createElement('div');
   notice.className = 'install-request-note';
   notice.innerHTML = iconMarkup('shield');
-  notice.appendChild(document.createTextNode('A website requested this installation. FACEIT Mods will only install the reviewed catalog package after you confirm.'));
+  notice.appendChild(document.createTextNode(request.source === 'webstore'
+    ? 'A website requested this installation. The package will come from the Chrome Web Store, but it has not been reviewed in the FACEIT Mods catalog.'
+    : 'A website requested this installation. FACEIT Mods will only install the reviewed catalog package after you confirm.'));
   hero.append(heading, createTextNode('p', 'detail-tagline', listing.tagline), notice);
 
   const actions = document.createElement('div');
@@ -968,10 +1005,14 @@ function renderInstallRequestScreen(state) {
 function renderSettingsScreen(state) {
   const screen = createScreen();
   screen.appendChild(createBackHeader('Settings', () => setActiveView('installed')));
-  screen.appendChild(createSettingsGroup('Manager', [
+  const managerRows = [
     createSettingsRow('refresh-cw', 'Refresh state', 'Re-read loaded mods and action state', () => refreshState(), 'Refresh'),
     createSettingsRow('folder-open', 'Open data folder', state.userDataPath || 'Extension loader storage', () => runManagerOperation({ operation: 'open-data-folder' }, { requiresReload: false }), 'Open'),
-  ]));
+  ];
+  if (state.capabilities && state.capabilities.desktopShortcuts) {
+    managerRows.push(createSettingsRow('monitor-down', 'Desktop shortcut', 'Open FACEIT directly in the Mods manager', () => runManagerOperation({ operation: 'create-shortcut' }, { successMessage: 'Desktop shortcut created.', requiresReload: false }), 'Create'));
+  }
+  screen.appendChild(createSettingsGroup('Manager', managerRows));
   screen.appendChild(createSettingsGroup('Developer', [
     createSettingsRow('folder-plus', 'Load unpacked mod', 'Add a local extension folder without copying it', () => runManagerOperation({ operation: 'add-from-folder' }, { successMessage: 'Unpacked mod added.' }), 'Choose'),
   ]));
@@ -1029,8 +1070,11 @@ function createCompatibilityLabel(listing) {
   const node = document.createElement('div');
   const tested = listing.compatibility === 'tested';
   node.className = tested ? 'compatibility' : 'compatibility experimental';
-  node.innerHTML = iconMarkup(tested ? 'badge-check' : 'flask');
-  node.appendChild(document.createTextNode(tested ? 'Tested with FACEIT Mods' : 'Experimental compatibility'));
+  const unreviewed = listing.compatibility === 'unreviewed';
+  node.innerHTML = iconMarkup(tested ? 'badge-check' : (unreviewed ? 'shield-alert' : 'flask'));
+  node.appendChild(document.createTextNode(tested
+    ? 'Tested with FACEIT Mods'
+    : (unreviewed ? 'Not reviewed in the catalog' : 'Experimental compatibility')));
   return node;
 }
 
@@ -1315,12 +1359,14 @@ function iconMarkup(name) {
     'folder-open': '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6A2 2 0 0 1 18.46 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2A2 2 0 0 0 12.1 6H18a2 2 0 0 1 2 2v2"/>',
     'folder-plus': '<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2A2 2 0 0 0 12.1 6H18a2 2 0 0 1 2 2Z"/>',
     loader: '<path d="M21 12a9 9 0 1 1-6.22-8.56"/>',
+    'monitor-down': '<path d="M12 13V7"/><path d="m9 10 3 3 3-3"/><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
     plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
     'panel-top-open': '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="m15 14 2 2 4-4"/>',
     'refresh-cw': '<path d="M21 12a9 9 0 0 0-15.17-6.56L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 15.17 6.56L21 16"/><path d="M16 16h5v5"/>',
     search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
     settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/>',
     shield: '<path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/>',
+    'shield-alert': '<path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3Z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
     trash: '<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/>',
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   };

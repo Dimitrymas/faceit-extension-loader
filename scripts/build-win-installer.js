@@ -20,6 +20,7 @@ const currentOutput = path.join(projectRoot, 'dist', 'FACEIT-Extension-Loader-Se
 const payloadHeader = path.join(buildRoot, 'payload_manifest.h');
 const resourceScript = path.join(buildRoot, 'installer.rc');
 const resourceObject = path.join(buildRoot, 'installer-resources.o');
+const protocolHandler = path.join(buildRoot, 'faceit-mods-handler.exe');
 
 main();
 
@@ -27,7 +28,15 @@ function main() {
   fs.rmSync(buildRoot, { recursive: true, force: true });
   fs.mkdirSync(buildRoot, { recursive: true });
   try {
-    const files = listPayloadFiles(bundleRoot);
+    buildProtocolHandler();
+    const files = [
+      ...listPayloadFiles(bundleRoot),
+      {
+        absolute: protocolHandler,
+        relative: path.join('native', 'faceit-mods-handler.exe'),
+        size: fs.statSync(protocolHandler).size,
+      },
+    ].sort((left, right) => left.relative.localeCompare(right.relative));
     writePayloadHeader(files);
     writeResourceScript(files);
     run('x86_64-w64-mingw32-windres', ['--codepage=65001', '-I', buildRoot, resourceScript, '-O', 'coff', '-o', resourceObject]);
@@ -55,6 +64,15 @@ function main() {
   } finally {
     fs.rmSync(buildRoot, { recursive: true, force: true });
   }
+}
+
+function buildProtocolHandler() {
+  run('x86_64-w64-mingw32-gcc', [
+    '-std=c11', '-Os', '-Wall', '-Wextra', '-Werror', '-municode', '-mwindows', '-static', '-s',
+    path.join(sourceRoot, 'protocol-handler.c'),
+    '-o', protocolHandler,
+    '-lshell32',
+  ]);
 }
 
 function listPayloadFiles(root) {

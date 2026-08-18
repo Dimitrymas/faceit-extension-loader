@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -19,6 +20,27 @@ const {
   patchPendingFaceitUpdate,
   resolveUpdateHookPaths,
 } = require('../mod/update-hook');
+
+test('release notes come from the matching changelog section', () => {
+  const projectRoot = path.join(__dirname, '..');
+  const packageJson = require('../package.json');
+  const result = spawnSync(process.execPath, [path.join(projectRoot, 'scripts', 'release-notes.js'), packageJson.version], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /stable `faceit-mods:\/\/open`/);
+  assert.match(result.stdout, /### Security/);
+  assert.equal(result.stdout.includes('0.3.0-beta.22'), false);
+
+  const missing = spawnSync(process.execPath, [path.join(projectRoot, 'scripts', 'release-notes.js'), '9.9.9'], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /does not contain a section for 9\.9\.9/);
+});
 
 test('patches the newest FACEIT app.asar and is idempotent', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'faceit-patcher-test-'));
@@ -476,6 +498,8 @@ test('mod manager exposes marketplace, lifecycle, window, and diagnostic operati
     'update-marketplace',
     'install-deeplink',
     'dismiss-deeplink',
+    'ack-deeplink',
+    'create-shortcut',
     'set-enabled',
     'reload',
     'remove',
@@ -645,24 +669,44 @@ test('embedded extension actions attach, resize, and detach inside the FACEIT wi
   assert.equal(parentMessages.at(-1).payload.open, false);
 });
 
-test('install deep links are catalog-scoped and always routed through confirmation state', () => {
+test('deep links expose strict open, install, and launch actions', () => {
   const bootstrap = fs.readFileSync(path.join(__dirname, '..', 'mod', 'bootstrap.js'), 'utf8');
   const helpers = loadBootstrapTestFunctions();
 
-  assert.match(bootstrap, /setAsDefaultProtocolClient\(DEEP_LINK_PROTOCOL\)/);
+  assert.equal(bootstrap.includes('setAsDefaultProtocolClient'), false);
   assert.match(bootstrap, /pendingInstallRequest/);
+  assert.match(bootstrap, /pendingNavigationRequest/);
   assert.match(bootstrap, /requirePendingInstallRequest/);
+  assert.match(bootstrap, /requirePendingNavigationRequest/);
   assert.match(bootstrap, /notifyDeepLinkRenderers/);
-  assert.deepEqual({ ...helpers.parseInstallDeepLink('faceit-mods://install/repeek') }, {
-    href: 'faceit-mods://install/repeek',
-    marketplaceId: 'repeek',
+  assert.deepEqual({ ...helpers.parseDeepLink('faceit-mods://open') }, {
+    action: 'open',
+    href: 'faceit-mods://open',
   });
-  assert.deepEqual({ ...helpers.parseInstallDeepLink('faceit-mods://install?id=faceit-forecast') }, {
+  assert.deepEqual({ ...helpers.parseDeepLink('faceit-mods://install/faceit-forecast') }, {
+    action: 'install',
     href: 'faceit-mods://install/faceit-forecast',
-    marketplaceId: 'faceit-forecast',
+    target: 'faceit-forecast',
   });
-  assert.throws(() => helpers.parseInstallDeepLink('faceit-mods://install/%2e%2e%2frepeek'), /invalid/);
-  assert.throws(() => helpers.parseInstallDeepLink('https://example.com/install/repeek'), /Unsupported/);
+  assert.deepEqual({ ...helpers.parseDeepLink('faceit-mods://launch/mpkkcddegpblmobincjkbpgfcbejjbcp') }, {
+    action: 'launch',
+    href: 'faceit-mods://launch/mpkkcddegpblmobincjkbpgfcbejjbcp',
+    target: 'mpkkcddegpblmobincjkbpgfcbejjbcp',
+  });
+  assert.deepEqual({ ...helpers.resolveDeepLinkInstallTarget('faceit-forecast') }, {
+    extensionId: 'mpkkcddegpblmobincjkbpgfcbejjbcp',
+    marketplaceId: 'faceit-forecast',
+    source: 'marketplace',
+  });
+  assert.deepEqual({ ...helpers.resolveDeepLinkInstallTarget('abcdefghijklmnopabcdefghijklmnop') }, {
+    extensionId: 'abcdefghijklmnopabcdefghijklmnop',
+    source: 'webstore',
+  });
+  assert.throws(() => helpers.resolveDeepLinkInstallTarget('unknown-extension'), /catalog id or Chrome Web Store/);
+  assert.throws(() => helpers.parseDeepLink('faceit-mods://install?id=faceit-forecast'), /Unsupported/);
+  assert.throws(() => helpers.parseDeepLink('faceit-mods://install/%66aceit-forecast'), /unsupported/i);
+  assert.throws(() => helpers.parseDeepLink('faceit-mods://install/%2e%2e%2fforecast'), /unsupported/i);
+  assert.throws(() => helpers.parseDeepLink('https://example.com/install/faceit-forecast'), /Unsupported/);
 });
 
 test('Chrome Web Store installs accept only store links or extension ids', () => {
@@ -702,6 +746,7 @@ test('extension window work area follows the display containing FACEIT', () => {
 });
 
 test('runtime compatibility remains extension-agnostic', () => {
+  const marketplace = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'mod', 'marketplace.json'), 'utf8'));
   const runtimeSources = [
     'bootstrap.js',
     'action-popup-preload.js',
@@ -710,8 +755,10 @@ test('runtime compatibility remains extension-agnostic', () => {
     'extension-toolbar-preload.js',
   ].map((fileName) => fs.readFileSync(path.join(__dirname, '..', 'mod', fileName), 'utf8').toLowerCase()).join('\n');
 
-  assert.equal(runtimeSources.includes('repeek'), false);
-  assert.equal(runtimeSources.includes('mokknliiomknodkdmpcellamkopbdmao'), false);
+  for (const listing of marketplace.extensions) {
+    assert.equal(runtimeSources.includes(listing.id.toLowerCase()), false);
+    assert.equal(runtimeSources.includes(listing.extensionId.toLowerCase()), false);
+  }
 });
 
 test('Windows maintenance scripts warn and close only the FACEIT desktop client', () => {
@@ -723,7 +770,6 @@ test('Windows maintenance scripts warn and close only the FACEIT desktop client'
   const patchScript = fs.readFileSync(path.join(windowsRoot, '1-patch-faceit.bat'), 'utf8');
   const debugScript = fs.readFileSync(path.join(windowsRoot, '3-run-faceit-debug.bat'), 'utf8');
   const restoreScript = fs.readFileSync(path.join(windowsRoot, '4-restore-faceit.bat'), 'utf8');
-  const deepLinkScript = fs.readFileSync(path.join(windowsRoot, '7-test-install-link.bat'), 'utf8');
 
   assert.match(helper, /Closing FACEIT immediately/);
   assert.equal(helper.includes('timeout /T 10 /NOBREAK'), false);
@@ -738,14 +784,18 @@ test('Windows maintenance scripts warn and close only the FACEIT desktop client'
     assert.match(script, /if errorlevel 1/);
   }
   assert.match(restoreScript, /reg delete "HKCU\\Software\\Classes\\faceit-mods"/);
-  assert.match(deepLinkScript, /start "" "faceit-mods:\/\/install\/repeek"/);
+  assert.match(restoreScript, /reg delete "HKCU\\Software\\FACEIT Mods"/);
   assert.match(patchScript, /install-update-hook-payload\.js/);
   assert.match(patchScript, /FACEIT Mods\\current/);
+  assert.match(patchScript, /Join-Path \$root 'FACEIT\.exe'/);
+  assert.match(patchScript, /DisplayVersion/);
+  assert.match(patchScript, /ProtocolVersion/);
 });
 
 test('native Windows setup uses the FACEIT Electron runtime and stays current-user scoped', () => {
   const projectRoot = path.join(__dirname, '..');
   const installer = fs.readFileSync(path.join(projectRoot, 'native-installer', 'installer.c'), 'utf8');
+  const protocolHandler = fs.readFileSync(path.join(projectRoot, 'native-installer', 'protocol-handler.c'), 'utf8');
   const manifest = fs.readFileSync(path.join(projectRoot, 'native-installer', 'installer.manifest'), 'utf8');
   const buildScript = fs.readFileSync(path.join(projectRoot, 'scripts', 'build-win-installer.js'), 'utf8');
   const packageJson = require('../package.json');
@@ -792,7 +842,12 @@ test('native Windows setup uses the FACEIT Electron runtime and stays current-us
   assert.match(installer, /primary_text = L"Open FACEIT"/);
   assert.match(installer, /installed\.marker/);
   assert.match(installer, /join_path\(marker, PATH_CAPACITY, mods_root, L"installed\.marker"\)/);
-  assert.match(installer, /join_path\(marker_path, PATH_CAPACITY, mods_root, L"installed\.marker"\)/);
+  assert.match(installer, /read_install_state_marker/);
+  assert.match(installer, /read_product_state_version/);
+  assert.match(installer, /RegQueryValueExW\(key, L"DisplayVersion"/);
+  assert.match(installer, /DisplayVersion/);
+  assert.match(installer, /ProtocolVersion/);
+  assert.match(installer, /L"Repair"/);
   assert.match(installer, /DWMWA_USE_IMMERSIVE_DARK_MODE/);
   assert.match(installer, /WM_DPICHANGED/);
   assert.match(installer, /DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2/);
@@ -804,18 +859,26 @@ test('native Windows setup uses the FACEIT Electron runtime and stays current-us
   assert.equal(fs.existsSync(path.join(projectRoot, 'LICENSE')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, 'THIRD_PARTY_NOTICES.md')), true);
   assert.equal(fs.existsSync(path.join(projectRoot, 'native-installer', 'faceit-mods.ico')), true);
+  assert.match(buildScript, /buildProtocolHandler/);
+  assert.match(buildScript, /faceit-mods-handler\.exe/);
+  assert.match(protocolHandler, /DEEP_LINK_PREFIX L"faceit-mods:\/\/"/);
+  assert.match(protocolHandler, /wcscmp\(action, L"open"\)/);
+  assert.match(protocolHandler, /install\//);
+  assert.match(protocolHandler, /launch\//);
+  assert.match(protocolHandler, /L"FACEIT\\\\FACEIT\.exe"|L"FACEIT"/);
+  assert.match(protocolHandler, /argument_count != 2/);
 });
 
 test('bundled marketplace has unique, attributable, compatibility-scoped listings', () => {
   const marketplace = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'mod', 'marketplace.json'), 'utf8'));
   assert.equal(marketplace.schemaVersion, 1);
   assert.ok(Array.isArray(marketplace.extensions));
-  assert.ok(marketplace.extensions.length >= 4);
+  assert.ok(marketplace.extensions.length >= 3);
   assert.equal(new Set(marketplace.extensions.map((listing) => listing.id)).size, marketplace.extensions.length);
   assert.equal(new Set(marketplace.extensions.map((listing) => listing.extensionId)).size, marketplace.extensions.length);
   for (const listing of marketplace.extensions) {
     assert.match(listing.id, /^[a-z0-9-]+$/);
-    assert.match(listing.extensionId, /^[a-z]{32}$/);
+    assert.match(listing.extensionId, /^[a-p]{32}$/);
     assert.match(listing.storeUrl, /^https:\/\/chromewebstore\.google\.com\/detail\//);
     assert.match(listing.iconUrl, /^https:\/\/lh3\.googleusercontent\.com\//);
     assert.ok(['tested', 'experimental'].includes(listing.compatibility));
@@ -926,7 +989,7 @@ function waitForStreamClose(stream) {
 
 function loadBootstrapTestFunctions() {
   const bootstrapPath = path.join(__dirname, '..', 'mod', 'bootstrap.js');
-  const source = `${fs.readFileSync(bootstrapPath, 'utf8')}\nmodule.exports = { getCrxZipPayload, resolveZipEntryPath, compareVersions, injectCompatScriptIntoHtml, parseInstallDeepLink, parseChromeWebStoreExtensionId, getExtensionWindowPosition, getExtensionWorkArea, prependContentScriptCompat, openEmbeddedExtensionAction, layoutEmbeddedExtensionAction, closeEmbeddedExtensionAction, embeddedExtensionActions };`;
+  const source = `${fs.readFileSync(bootstrapPath, 'utf8')}\nmodule.exports = { getCrxZipPayload, resolveZipEntryPath, compareVersions, injectCompatScriptIntoHtml, parseDeepLink, resolveDeepLinkInstallTarget, parseChromeWebStoreExtensionId, getExtensionWindowPosition, getExtensionWorkArea, prependContentScriptCompat, openEmbeddedExtensionAction, layoutEmbeddedExtensionAction, closeEmbeddedExtensionAction, embeddedExtensionActions };`;
   const context = {
     Buffer,
     URL,

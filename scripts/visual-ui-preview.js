@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const packageJson = require('../package.json');
 
 const toolbarPath = path.join(__dirname, '..', 'mod', 'extension-toolbar-preload.js');
 const toolbarSource = fs.readFileSync(toolbarPath, 'utf8')
@@ -39,16 +40,17 @@ const toolbarSource = fs.readFileSync(toolbarPath, 'utf8')
 
 const previewState = {
   actionState: { activeTabId: 7, actions: [] },
+  capabilities: { desktopShortcuts: true },
   diagnostics: { recentLogs: [] },
   extensions: [
-    { key: 'repeek', id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'Repeek', version: '6.4.0', enabled: true, state: 'loaded', hasAction: true, hasOptions: true, source: 'marketplace', marketplaceId: 'repeek' },
+    { key: 'peekstats', id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'PeekStats', version: '2.1.6', enabled: true, state: 'loaded', hasAction: true, hasOptions: true, source: 'marketplace', marketplaceId: 'peekstats' },
     { key: 'forecast', id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'FACEIT Forecast', version: '2.1.3', enabled: true, state: 'loaded', hasAction: true, hasOptions: false, source: 'marketplace', marketplaceId: 'faceit-forecast' },
     { key: 'heatcheck', id: 'cccccccccccccccccccccccccccccccc', name: 'Heatcheck', version: '1.8.2', enabled: false, state: 'disabled', hasAction: true, hasOptions: true, source: 'marketplace', marketplaceId: 'heatcheck' },
   ],
-  loader: { version: '0.3.0-beta.22' },
+  loader: { version: packageJson.version },
   marketplace: {
     extensions: [
-      { id: 'repeek', extensionId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'Repeek', monogram: 'R', accent: '#ff5500', category: 'Stats', audience: 'Players', tagline: 'Matchroom and player insights', installed: true },
+      { id: 'peekstats', extensionId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'PeekStats', monogram: 'P', accent: '#4f7fe8', category: 'Statistics', audience: 'Players', tagline: 'Player statistics and match insights', installed: true },
       { id: 'faceit-forecast', extensionId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'FACEIT Forecast', monogram: 'F', accent: '#2878c7', category: 'Prediction', audience: 'Players', tagline: 'Match forecasts', installed: true, pageLauncherSelectors: ['#fc-logo-button'] },
       { id: 'heatcheck', extensionId: 'cccccccccccccccccccccccccccccccc', name: 'Heatcheck', monogram: 'H', accent: '#9b3f57', category: 'Stats', audience: 'Players', tagline: 'Performance trends', installed: true },
     ],
@@ -181,6 +183,16 @@ async function render() {
       await page.screenshot({ path: screenshot, fullPage: true });
       console.log(JSON.stringify({ screenshot, viewport, ...metrics }));
 
+      await page.locator('#faceit-extension-loader-panel-host [title="Create desktop shortcut"]').first().evaluate((node) => node.click());
+      const shortcutRequest = await page.evaluate(() => globalThis.__previewManagerRequests.at(-1));
+      if (!shortcutRequest || shortcutRequest.operation !== 'create-shortcut' || !shortcutRequest.key) {
+        throw new Error(`${viewport.name} extension shortcut request failed: ${JSON.stringify(shortcutRequest)}`);
+      }
+      await page.evaluate(() => {
+        const root = document.getElementById('faceit-extension-loader-panel-host').shadowRoot;
+        root.querySelector('[data-role="toasts"]').replaceChildren();
+      });
+
       await page.locator('[data-loader-launcher-proxy="#fc-logo-button"]').evaluate((node) => node.click());
       const launcherClick = await page.evaluate(() => ({
         clicks: globalThis.__forecastLauncherClicks,
@@ -204,13 +216,13 @@ async function render() {
         globalThis.__previewListeners['faceit-extension-loader:action-popup-state']({}, {
           open: true,
           extensionId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          name: 'Repeek',
+          name: 'PeekStats',
           width: 720,
           height: 540,
         });
         const host = document.getElementById('faceit-extension-loader-action-popup-host');
         const surface = host.shadowRoot.querySelector('.surface');
-        surface.innerHTML = `<style>*{box-sizing:border-box}.layout{background:#101010;color:#f4f4f5;display:grid;font:14px Inter,Arial,sans-serif;grid-template-columns:180px 1fr;height:100%}.nav{background:#191919;border-right:1px solid #303030;padding:20px 12px}.brand{font-size:22px;font-weight:800;margin-bottom:28px}.nav div+div{color:#aaa;margin-top:18px}.content{padding:26px}.content h2{font-size:19px;margin:0 0 22px}.setting{border-top:1px solid #303030;padding:20px 0}.switch{background:#ff5500;border-radius:10px;float:right;height:20px;width:36px}</style><div class="layout"><div class="nav"><div class="brand">REPEEK</div><div>General</div><div>FACEIT</div><div>Help</div></div><div class="content"><h2>Matchroom</h2><div class="setting"><span class="switch"></span>Focus mode</div><div class="setting"><span class="switch"></span>Right sidebar rating</div><div class="setting">Map veto stats</div></div></div>`;
+        surface.innerHTML = `<style>*{box-sizing:border-box}.layout{background:#101010;color:#f4f4f5;display:grid;font:14px Inter,Arial,sans-serif;grid-template-columns:180px 1fr;height:100%}.nav{background:#191919;border-right:1px solid #303030;padding:20px 12px}.brand{font-size:22px;font-weight:800;margin-bottom:28px}.nav div+div{color:#aaa;margin-top:18px}.content{padding:26px}.content h2{font-size:19px;margin:0 0 22px}.setting{border-top:1px solid #303030;padding:20px 0}.switch{background:#4f7fe8;border-radius:10px;float:right;height:20px;width:36px}</style><div class="layout"><div class="nav"><div class="brand">PEEKSTATS</div><div>Overview</div><div>Players</div><div>Settings</div></div><div class="content"><h2>Match insights</h2><div class="setting"><span class="switch"></span>Recent form</div><div class="setting"><span class="switch"></span>Player comparison</div><div class="setting">Map performance</div></div></div>`;
         const rect = host.getBoundingClientRect();
         return {
           open: host.hasAttribute('data-open'),
@@ -269,9 +281,10 @@ async function render() {
           token: 'preview-install-token',
           requestedAt: new Date().toISOString(),
           marketplaceId: listing.id,
+          source: 'marketplace',
           listing: {
             ...listing,
-            author: 'Repeek Team',
+            author: 'PeekStats',
             compatibility: 'tested',
             permissions: ['Read FACEIT match and player pages', 'Store extension preferences'],
           },
@@ -293,6 +306,54 @@ async function render() {
       const installScreenshot = path.join('/tmp', `faceit-mods-install-${viewport.name}.png`);
       await page.screenshot({ path: installScreenshot, fullPage: true });
       console.log(JSON.stringify({ screenshot: installScreenshot, viewport, ...installMetrics }));
+
+      await page.evaluate(() => {
+        const extensionId = 'abcdefghijklmnopabcdefghijklmnop';
+        globalThis.__previewState.pendingInstall = {
+          extensionId,
+          requestedAt: new Date().toISOString(),
+          source: 'webstore',
+          token: 'preview-webstore-install-token',
+          listing: {
+            accent: '#5a5a62',
+            author: 'Chrome Web Store',
+            compatibility: 'unreviewed',
+            extensionId,
+            id: `webstore-${extensionId}`,
+            installed: false,
+            monogram: 'C',
+            name: 'Chrome Web Store extension',
+            permissions: [
+              'Permissions declared by the downloaded extension package',
+              'Only supported FACEIT origins are granted by FACEIT Mods',
+            ],
+            source: 'webstore',
+            tagline: `Extension id ${extensionId}`,
+          },
+        };
+        globalThis.__previewListeners['faceit-extension-loader:deep-link']({}, { extensionId });
+      });
+      await page.waitForTimeout(250);
+      const webstoreMetrics = await page.evaluate(() => {
+        const root = document.getElementById('faceit-extension-loader-panel-host').shadowRoot;
+        return {
+          compatibility: root.querySelector('.compatibility')?.textContent,
+          installButton: Array.from(root.querySelectorAll('.detail-actions .button')).map((button) => button.textContent.trim())[0],
+          notice: root.querySelector('.install-request-note')?.textContent,
+        };
+      });
+      if (webstoreMetrics.compatibility !== 'Not reviewed in the catalog'
+        || webstoreMetrics.installButton !== 'Install mod'
+        || !webstoreMetrics.notice.includes('Chrome Web Store')) {
+        throw new Error(`${viewport.name} direct Store install request is invalid: ${JSON.stringify(webstoreMetrics)}`);
+      }
+      await page.evaluate(() => {
+        const root = document.getElementById('faceit-extension-loader-panel-host').shadowRoot;
+        root.querySelector('[data-role="toasts"]').replaceChildren();
+      });
+      const webstoreScreenshot = path.join('/tmp', `faceit-mods-install-webstore-${viewport.name}.png`);
+      await page.screenshot({ path: webstoreScreenshot, fullPage: true });
+      console.log(JSON.stringify({ screenshot: webstoreScreenshot, viewport, ...webstoreMetrics }));
       await page.close();
     }
   } finally {

@@ -57,10 +57,23 @@ jobs:
         run: |
           EXE="dist/FACEIT-Extension-Loader-Setup-${DEV_VERSION}-x64.exe"
           CHECKSUM="${EXE}.sha256"
+          SHORT_SHA=${GITHUB_SHA::7}
+          cat > dev-release-notes.md <<EOF
+          ## Development build
+
+          Built from [\`${SHORT_SHA}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}) on the \`dev\` branch.
+
+          ### Verification
+
+          - Passed the repository test suite.
+          - Built the self-contained Windows x64 Setup and SHA-256 checksum.
+
+          > This artifact is unsigned, mutable, and intended for testing. Use a versioned release for reproducible distribution.
+          EOF
           gh release delete dev-latest --cleanup-tag --yes || true
           git push origin :refs/tags/dev-latest || true
           gh release create dev-latest "$EXE" "$CHECKSUM" \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "Development build ${DEV_VERSION}" \
-            --notes "Automated development build from dev at ${GITHUB_SHA}. Unsigned and intended for testing only."
+            --notes-file dev-release-notes.md

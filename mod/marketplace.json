@@ -1,34 +1,7 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-18",
+  "updatedAt": "2026-08-19",
   "extensions": [
-    {
-      "id": "repeek",
-      "extensionId": "mokknliiomknodkdmpcellamkopbdmao",
-      "name": "Repeek",
-      "author": "Repeek",
-      "latestVersion": "5.6.10",
-      "tagline": "Richer matchrooms, player insights and quality-of-life tools.",
-      "description": "The established FACEIT companion formerly known as FACEIT Enhancer. Repeek adds deeper player context and configurable improvements throughout FACEIT.",
-      "category": "Competitive",
-      "compatibility": "tested",
-      "featured": true,
-      "audience": "1M+ users",
-      "rating": "4.0",
-      "accent": "#ef5a29",
-      "monogram": "R",
-      "iconUrl": "https://lh3.googleusercontent.com/WSfqlkK9qIT1SiC1vdPhWBk0QfC95gkdyVbWwQGdZTSBbuefz9HUyoixxGhtMLXQ47ktvxqAZynPAukYzLdsOFa4hQ=s128-rj-sc0x00ffffff",
-      "storeUrl": "https://chromewebstore.google.com/detail/repeek-formerly-faceit-en/mokknliiomknodkdmpcellamkopbdmao",
-      "features": [
-        "Detailed FACEIT matchroom context",
-        "Player and team performance insights",
-        "Configurable FACEIT interface enhancements"
-      ],
-      "permissions": [
-        "Read and change supported FACEIT pages",
-        "Store extension preferences"
-      ]
-    },
     {
       "id": "faceit-forecast",
       "extensionId": "mpkkcddegpblmobincjkbpgfcbejjbcp",
@@ -38,8 +11,8 @@
       "tagline": "Match predictions and player context directly on FACEIT.",
       "description": "A focused match companion that augments FACEIT pages with forecasts and extra player information.",
       "category": "Analytics",
-      "compatibility": "experimental",
-      "featured": false,
+      "compatibility": "tested",
+      "featured": true,
       "audience": "100K+ users",
       "rating": "4.8",
       "accent": "#3aa675",
