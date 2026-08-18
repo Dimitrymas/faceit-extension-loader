@@ -43,7 +43,7 @@ jobs:
         with:
           name: faceit-extension-loader-${{ github.sha }}
           path: |
-            dist/FACEIT-Mods-Setup-*-x64.exe
-            dist/FACEIT-Mods-Setup-*-x64.exe.sha256
+            dist/FACEIT-Extension-Loader-Setup-*-x64.exe
+            dist/FACEIT-Extension-Loader-Setup-*-x64.exe.sha256
           if-no-files-found: error
           retention-days: 7

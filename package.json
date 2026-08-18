@@ -1,6 +1,6 @@
 {
   "name": "faceit-extension-loader",
-  "version": "0.3.0-beta.21",
+  "version": "0.3.0-beta.22",
   "private": true,
   "description": "Experimental extension loader and mod manager for the FACEIT desktop client.",
   "license": "GPL-3.0-only",

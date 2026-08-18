@@ -49,7 +49,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.value }}
         run: |
-          EXE="dist/FACEIT-Mods-Setup-${VERSION}-x64.exe"
+          EXE="dist/FACEIT-Extension-Loader-Setup-${VERSION}-x64.exe"
           CHECKSUM="${EXE}.sha256"
           FLAGS=()
           if [[ "$VERSION" == *-* ]]; then FLAGS+=(--prerelease); fi

@@ -55,7 +55,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DEV_VERSION: ${{ steps.version.outputs.value }}
         run: |
-          EXE="dist/FACEIT-Mods-Setup-${DEV_VERSION}-x64.exe"
+          EXE="dist/FACEIT-Extension-Loader-Setup-${DEV_VERSION}-x64.exe"
           CHECKSUM="${EXE}.sha256"
           gh release delete dev-latest --cleanup-tag --yes || true
           git push origin :refs/tags/dev-latest || true

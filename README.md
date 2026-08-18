@@ -79,8 +79,8 @@ npm run build:win-installer
 Output:
 
 ```text
-dist/FACEIT-Mods-Setup-<version>-x64.exe
-dist/FACEIT-Mods-Setup-<version>-x64.exe.sha256
+dist/FACEIT-Extension-Loader-Setup-<version>-x64.exe
+dist/FACEIT-Extension-Loader-Setup-<version>-x64.exe.sha256
 ```
 
 Development executables are unsigned. A promoted release should be Authenticode-signed and timestamped with the same publisher identity on every release; signing does not replace FACEIT permission or guarantee immediate Microsoft SmartScreen reputation.
@@ -186,7 +186,7 @@ npm test
 
 - `main` contains reviewed release candidates and stable releases.
 - `dev` is the integration branch. Every push runs the full test/build pipeline and replaces the `dev-latest` prerelease.
-- Tags matching the package version, such as `v0.3.0-beta.21` or `v0.3.0`, produce immutable versioned GitHub Releases.
+- Tags matching the package version, such as `v0.3.0-beta.22` or `v0.3.0`, produce immutable versioned GitHub Releases.
 - Pull requests into `main` must pass the `test-and-build` status check.
 
 ## Windows Spike Checklist
