@@ -24,11 +24,18 @@ const {
 test('release notes come from the matching changelog section', () => {
   const projectRoot = path.join(__dirname, '..');
   const packageJson = require('../package.json');
-  const result = spawnSync(process.execPath, [path.join(projectRoot, 'scripts', 'release-notes.js'), packageJson.version], {
+  const packageVersion = process.env.FACEIT_TEST_PACKAGE_VERSION || packageJson.version;
+  const changelog = fs.readFileSync(path.join(projectRoot, 'CHANGELOG.md'), 'utf8');
+  const releaseVersion = [...changelog.matchAll(/^## \[([^\]]+)\](?: - .+)?$/gm)]
+    .map((match) => match[1])
+    .find((version) => version !== 'Unreleased');
+  assert.ok(releaseVersion);
+  const result = spawnSync(process.execPath, [path.join(projectRoot, 'scripts', 'release-notes.js'), releaseVersion], {
     cwd: projectRoot,
     encoding: 'utf8',
   });
 
+  if (!/-dev\.\d+$/.test(packageVersion)) assert.equal(releaseVersion, packageVersion);
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /stable `faceit-mods:\/\/open`/);
   assert.match(result.stdout, /### Security/);
