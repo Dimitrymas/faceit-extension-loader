@@ -55,6 +55,7 @@ const embeddedExtensionActions = new Map();
 const queuedDeepLinks = [];
 
 let pendingInstallRequest = null;
+let pendingNavigationRequest = null;
 let deepLinkRuntime = null;
 
 let electron;
@@ -164,21 +165,13 @@ async function setupExtensionLoader({ app, BrowserView, BrowserWindow, clipboard
     shell,
   });
 
-  initializeDeepLinks({ app, BrowserWindow, logger });
+  initializeDeepLinks({ BrowserWindow, logger });
 }
 
-function initializeDeepLinks({ app, BrowserWindow, logger }) {
+function initializeDeepLinks({ BrowserWindow, logger }) {
   deepLinkRuntime = { BrowserWindow, logger };
-  if (process.platform === 'win32' && app && typeof app.setAsDefaultProtocolClient === 'function') {
-    try {
-      const registered = app.setAsDefaultProtocolClient(DEEP_LINK_PROTOCOL);
-      logger.info(`${DEEP_LINK_PROTOCOL} protocol registration ${registered ? 'ready' : 'failed'}`);
-    } catch (error) {
-      logger.warn(`failed to register ${DEEP_LINK_PROTOCOL} protocol`, error);
-    }
-  }
   while (queuedDeepLinks.length > 0) {
-    processInstallDeepLink(queuedDeepLinks.shift(), deepLinkRuntime);
+    processDeepLink(queuedDeepLinks.shift(), deepLinkRuntime);
   }
 }
 
@@ -190,7 +183,7 @@ function queueDeepLinksFromArguments(args) {
 
 function queueDeepLink(value) {
   if (deepLinkRuntime) {
-    processInstallDeepLink(value, deepLinkRuntime);
+    processDeepLink(value, deepLinkRuntime);
     return;
   }
   queuedDeepLinks.push(value);
@@ -200,37 +193,52 @@ function isFaceitModsDeepLink(value) {
   return typeof value === 'string' && value.toLowerCase().startsWith(`${DEEP_LINK_PROTOCOL}://`);
 }
 
-function parseInstallDeepLink(value) {
+function parseDeepLink(value) {
   const url = new URL(value);
-  if (url.protocol !== `${DEEP_LINK_PROTOCOL}:` || url.hostname !== 'install' || url.username || url.password || url.port) {
+  if (url.protocol !== `${DEEP_LINK_PROTOCOL}:` || url.username || url.password || url.port || url.search || url.hash) {
     throw new Error('Unsupported FACEIT Mods link');
   }
-  const pathId = decodeURIComponent(url.pathname.replace(/^\/+|\/+$/g, ''));
-  const marketplaceId = pathId || url.searchParams.get('id') || '';
-  if (!/^[a-z0-9-]+$/.test(marketplaceId)) {
-    throw new Error('The install link contains an invalid catalog id');
+  const action = url.hostname.toLowerCase();
+  const segments = url.pathname.split('/').filter(Boolean);
+  if (action === 'open' && segments.length === 0) {
+    return { action, href: `${DEEP_LINK_PROTOCOL}://open` };
   }
+  if (!['install', 'launch'].includes(action) || segments.length !== 1 || !/^[a-z0-9-]{1,64}$/.test(segments[0])) {
+    throw new Error('The FACEIT Mods link contains an unsupported action or target');
+  }
+  const target = segments[0];
   return {
-    href: `${DEEP_LINK_PROTOCOL}://install/${marketplaceId}`,
-    marketplaceId,
+    action,
+    href: `${DEEP_LINK_PROTOCOL}://${action}/${target}`,
+    target,
   };
 }
 
-function processInstallDeepLink(value, { BrowserWindow, logger }) {
+function processDeepLink(value, { BrowserWindow, logger }) {
   try {
-    const parsed = parseInstallDeepLink(value);
-    const listing = findMarketplaceListing(parsed.marketplaceId);
-    pendingInstallRequest = {
+    const parsed = parseDeepLink(value);
+    const request = {
+      action: parsed.action,
       href: parsed.href,
-      marketplaceId: listing.id,
       requestedAt: new Date().toISOString(),
       token: crypto.randomUUID(),
     };
-    logger.info(`received confirmed-install request for catalog extension ${listing.name} (${listing.id})`);
+    if (parsed.action === 'install') {
+      const installTarget = resolveDeepLinkInstallTarget(parsed.target);
+      pendingNavigationRequest = null;
+      pendingInstallRequest = { ...request, ...installTarget };
+      logger.info(`received install request for ${installTarget.marketplaceId
+        ? `catalog extension ${installTarget.marketplaceId}`
+        : `Chrome Web Store extension ${installTarget.extensionId}`}`);
+    } else {
+      pendingInstallRequest = null;
+      pendingNavigationRequest = { ...request, ...(parsed.target ? { target: parsed.target } : {}) };
+      logger.info(`received ${parsed.action} request${parsed.target ? ` for ${parsed.target}` : ''}`);
+    }
     focusFaceitWindow(BrowserWindow);
-    notifyDeepLinkRenderers(BrowserWindow, pendingInstallRequest);
+    notifyDeepLinkRenderers(BrowserWindow, pendingInstallRequest || pendingNavigationRequest);
   } catch (error) {
-    logger.warn('rejected FACEIT Mods install link', error);
+    logger.warn('rejected FACEIT Mods link', error);
   }
 }
 
@@ -989,6 +997,7 @@ function registerExtensionLoaderIpc({
       browserSession,
       loadedExtensions,
       registry,
+      shell,
     });
 
     ipcMain.handle(IPC_GET_STATE, (event) => {
@@ -1064,16 +1073,22 @@ function registerExtensionLoaderIpc({
   }
 }
 
-function createLoaderState({ app, bridge, browserSession, loadedExtensions, registry }) {
+function createLoaderState({ app, bridge, browserSession, loadedExtensions, registry, shell }) {
   const userDataPath = getDataRoot(app);
   const logPath = path.join(userDataPath, 'loader.log');
   const extensions = getLiveExtensionState(browserSession, loadedExtensions);
   const marketplace = createMarketplaceState({ extensions, registry });
-  const pendingListing = pendingInstallRequest
-    ? marketplace.extensions.find((listing) => listing.id === pendingInstallRequest.marketplaceId)
-    : null;
+  const pendingListing = createPendingInstallListing({
+    extensions,
+    marketplace,
+    pending: pendingInstallRequest,
+    registry,
+  });
   return {
     actionState: getBrowserActionState(bridge),
+    capabilities: {
+      desktopShortcuts: process.platform === 'win32' && Boolean(shell && typeof shell.writeShortcutLink === 'function'),
+    },
     diagnostics: {
       generatedAt: new Date().toISOString(),
       logPath,
@@ -1085,6 +1100,7 @@ function createLoaderState({ app, bridge, browserSession, loadedExtensions, regi
       ...pendingInstallRequest,
       listing: pendingListing,
     } : null,
+    pendingNavigation: pendingNavigationRequest,
     registryPath: registry.__registryPath,
     extensions,
     userDataPath,
@@ -1111,6 +1127,7 @@ async function manageExtensionRequest({
   const operation = request && typeof request.operation === 'string' ? request.operation : '';
   let pageReloadRequired = false;
   let surfaceResult = null;
+  let shortcutPath = null;
 
   if (operation === 'add-from-folder') {
     if (!dialog || typeof dialog.showOpenDialog !== 'function') {
@@ -1161,20 +1178,35 @@ async function manageExtensionRequest({
     pageReloadRequired = true;
   } else if (operation === 'install-deeplink') {
     const pending = requirePendingInstallRequest(request.token);
-    await installMarketplaceExtension({
-      bridge,
-      browserSession,
-      loadedExtensions,
-      logger,
-      marketplaceId: pending.marketplaceId,
-      registry,
-    });
+    if (pending.marketplaceId) {
+      await installMarketplaceExtension({
+        bridge,
+        browserSession,
+        loadedExtensions,
+        logger,
+        marketplaceId: pending.marketplaceId,
+        registry,
+      });
+    } else {
+      await installChromeWebStoreExtension({
+        bridge,
+        browserSession,
+        input: pending.extensionId,
+        loadedExtensions,
+        logger,
+        registry,
+      });
+    }
     pendingInstallRequest = null;
     notifyDeepLinkRenderers(BrowserWindow, null);
     pageReloadRequired = true;
   } else if (operation === 'dismiss-deeplink') {
     requirePendingInstallRequest(request.token);
     pendingInstallRequest = null;
+    notifyDeepLinkRenderers(BrowserWindow, null);
+  } else if (operation === 'ack-deeplink') {
+    requirePendingNavigationRequest(request.token);
+    pendingNavigationRequest = null;
     notifyDeepLinkRenderers(BrowserWindow, null);
   } else if (operation === 'set-enabled') {
     await setExtensionEnabled({
@@ -1233,6 +1265,15 @@ async function manageExtensionRequest({
       throw new Error('Clipboard is unavailable');
     }
     clipboard.writeText(`${DEEP_LINK_PROTOCOL}://install/${listing.id}`);
+  } else if (operation === 'create-shortcut') {
+    shortcutPath = createDesktopShortcut({
+      app,
+      key: request.key,
+      loadedExtensions,
+      logger,
+      registry,
+      shell,
+    });
   } else if (operation === 'open-data-folder') {
     if (!shell || typeof shell.openPath !== 'function') {
       throw new Error('Opening folders is unavailable');
@@ -1256,6 +1297,7 @@ async function manageExtensionRequest({
     pageReloadRequired,
     state: getState(),
     ...(surfaceResult ? { surface: surfaceResult } : {}),
+    ...(shortcutPath ? { shortcutPath } : {}),
   };
 }
 
@@ -1264,6 +1306,66 @@ function requirePendingInstallRequest(token) {
     throw new Error('The install request expired; open the link again');
   }
   return pendingInstallRequest;
+}
+
+function requirePendingNavigationRequest(token) {
+  if (!pendingNavigationRequest || typeof token !== 'string' || token !== pendingNavigationRequest.token) {
+    throw new Error('The FACEIT Mods link expired; open it again');
+  }
+  return pendingNavigationRequest;
+}
+
+function createDesktopShortcut({ app, key, loadedExtensions, logger, registry, shell }) {
+  if (process.platform !== 'win32' || !shell || typeof shell.writeShortcutLink !== 'function') {
+    throw new Error('Desktop shortcuts are unavailable in this FACEIT runtime');
+  }
+  const launcher = resolveStableFaceitLauncher();
+  let deepLink = `${DEEP_LINK_PROTOCOL}://open`;
+  let shortcutName = 'FACEIT Mods';
+  let description = 'Open FACEIT Mods';
+  if (typeof key === 'string' && key.length > 0) {
+    const status = loadedExtensions.find((candidate) => candidate && candidate.key === key);
+    const entry = status && (status.marketplaceId || status.id)
+      ? null
+      : findRegistryEntryByKey(registry, key);
+    const target = status && (status.marketplaceId || status.id)
+      ? (status.marketplaceId || status.id)
+      : (entry.marketplaceId || entry.id);
+    if (typeof target !== 'string' || !/^[a-z0-9-]{1,64}$/.test(target)) {
+      throw new Error('This extension does not have a stable shortcut target');
+    }
+    const extensionName = status && status.name ? status.name : (entry.name || 'Extension');
+    deepLink = `${DEEP_LINK_PROTOCOL}://launch/${target}`;
+    shortcutName = `${extensionName} - FACEIT`;
+    description = `Open ${extensionName} in FACEIT Mods`;
+  }
+  const shortcutPath = path.join(app.getPath('desktop'), `${sanitizeShortcutName(shortcutName)}.lnk`);
+  const created = shell.writeShortcutLink(shortcutPath, 'create', {
+    target: launcher,
+    args: deepLink,
+    cwd: path.dirname(launcher),
+    description,
+    icon: launcher,
+    iconIndex: 0,
+  });
+  if (!created) throw new Error('Windows could not create the desktop shortcut');
+  logger.info(`created desktop shortcut: ${shortcutPath} -> ${deepLink}`);
+  return shortcutPath;
+}
+
+function resolveStableFaceitLauncher() {
+  const localAppData = process.env.LOCALAPPDATA;
+  const candidate = localAppData && path.join(localAppData, 'FACEIT', 'FACEIT.exe');
+  return candidate && fs.existsSync(candidate) ? candidate : process.execPath;
+}
+
+function sanitizeShortcutName(value) {
+  const cleaned = String(value || '')
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+    .replace(/[. ]+$/g, '')
+    .trim()
+    .slice(0, 120);
+  return cleaned || 'FACEIT Mods';
 }
 
 function readMarketplaceDocument() {
@@ -1280,7 +1382,7 @@ function getMarketplaceListings() {
       && typeof listing.id === 'string'
       && /^[a-z0-9-]+$/.test(listing.id)
       && typeof listing.extensionId === 'string'
-      && /^[a-z]{32}$/.test(listing.extensionId)
+      && /^[a-p]{32}$/.test(listing.extensionId)
       && typeof listing.storeUrl === 'string';
   });
 }
@@ -1291,6 +1393,56 @@ function findMarketplaceListing(marketplaceId) {
     throw new Error('This marketplace extension is not available in the bundled catalog');
   }
   return listing;
+}
+
+function resolveDeepLinkInstallTarget(target) {
+  const listing = getMarketplaceListings().find((candidate) => (
+    candidate.id === target || candidate.extensionId === target
+  ));
+  if (listing) {
+    return {
+      extensionId: listing.extensionId,
+      marketplaceId: listing.id,
+      source: 'marketplace',
+    };
+  }
+  if (/^[a-p]{32}$/.test(target)) {
+    return { extensionId: target, source: 'webstore' };
+  }
+  throw new Error('Install links must use a catalog id or Chrome Web Store extension id');
+}
+
+function createPendingInstallListing({ extensions, marketplace, pending, registry }) {
+  if (!pending) return null;
+  if (pending.marketplaceId) {
+    return marketplace.extensions.find((listing) => listing.id === pending.marketplaceId) || null;
+  }
+  if (!/^[a-p]{32}$/.test(pending.extensionId || '')) return null;
+  const installed = extensions.find((extension) => extension && extension.id === pending.extensionId);
+  const registryEntry = getRegistryEntries(registry).find((entry) => entry && entry.id === pending.extensionId);
+  const installedVersion = installed && installed.version
+    ? installed.version
+    : registryEntry && registryEntry.version;
+  return {
+    accent: '#5a5a62',
+    author: 'Chrome Web Store',
+    compatibility: 'unreviewed',
+    extensionId: pending.extensionId,
+    id: `webstore-${pending.extensionId}`,
+    installed: Boolean(installed || registryEntry),
+    installedKey: installed && installed.key,
+    installedState: installed && installed.state,
+    installedVersion,
+    monogram: 'C',
+    name: installed && installed.name ? installed.name : 'Chrome Web Store extension',
+    permissions: [
+      'Permissions declared by the downloaded extension package',
+      'Only supported FACEIT origins are granted by FACEIT Mods',
+    ],
+    source: 'webstore',
+    tagline: `Extension id ${pending.extensionId}`,
+    updateAvailable: false,
+  };
 }
 
 function createMarketplaceState({ extensions, registry }) {

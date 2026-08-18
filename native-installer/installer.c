@@ -16,6 +16,7 @@
 #include <uxtheme.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <wchar.h>
 
 typedef struct PayloadEntry {
@@ -84,6 +85,7 @@ static BOOL g_silent;
 static BOOL g_install_complete;
 static BOOL g_faceit_detected;
 static BOOL g_payload_installed;
+static BOOL g_payload_current;
 static BOOL g_restore_available;
 static BOOL g_high_contrast;
 static UINT g_dpi = 96;
@@ -97,6 +99,7 @@ static ButtonState g_folder_button_state = { BUTTON_SECONDARY, FALSE };
 static wchar_t g_status_text[STATUS_CAPACITY] = L"Ready to install.";
 static wchar_t g_detail_text[STATUS_CAPACITY] = L"";
 static wchar_t g_faceit_text[128] = L"Checking for FACEIT...";
+static wchar_t g_installed_version[128];
 static wchar_t g_last_error[STATUS_CAPACITY];
 #ifdef FACEIT_INSTALLER_CAPTURE
 static UINT g_capture_dpi_override;
@@ -436,22 +439,130 @@ static DWORD run_loader_command(SetupAction action, const wchar_t *install_root,
   return result;
 }
 
+static BOOL write_registry_string(const wchar_t *subkey, const wchar_t *name, const wchar_t *value) {
+  HKEY key;
+  LONG status = RegCreateKeyExW(HKEY_CURRENT_USER, subkey, 0, NULL, 0, KEY_SET_VALUE, NULL, &key, NULL);
+  if (status != ERROR_SUCCESS) {
+    SetLastError((DWORD)status);
+    set_error_from_win32(L"Could not create a FACEIT Mods registry key");
+    return FALSE;
+  }
+  status = RegSetValueExW(key, name, 0, REG_SZ, (const BYTE *)value,
+                          (DWORD)((wcslen(value) + 1) * sizeof(wchar_t)));
+  RegCloseKey(key);
+  if (status != ERROR_SUCCESS) {
+    SetLastError((DWORD)status);
+    set_error_from_win32(L"Could not write a FACEIT Mods registry value");
+    return FALSE;
+  }
+  return TRUE;
+}
+
+static BOOL write_product_state(const wchar_t *install_root) {
+  return write_registry_string(L"Software\\FACEIT Mods", L"DisplayName", L"FACEIT Extension Loader")
+    && write_registry_string(L"Software\\FACEIT Mods", L"DisplayVersion", APP_VERSION)
+    && write_registry_string(L"Software\\FACEIT Mods", L"InstallLocation", install_root)
+    && write_registry_string(L"Software\\FACEIT Mods", L"Protocol", L"faceit-mods")
+    && write_registry_string(L"Software\\FACEIT Mods", L"ProtocolVersion", L"1");
+}
+
+static BOOL register_deep_link_handler(const wchar_t *install_root) {
+  wchar_t faceit_exe[PATH_CAPACITY];
+  wchar_t handler[PATH_CAPACITY];
+  wchar_t command[PATH_CAPACITY * 2];
+  wchar_t icon[PATH_CAPACITY + 4];
+  if (!find_latest_faceit_exe(faceit_exe, PATH_CAPACITY)) {
+    set_error(L"FACEIT.exe was not found for the deep-link handler");
+    return FALSE;
+  }
+  if (!join_path(handler, PATH_CAPACITY, install_root, L"native\\faceit-mods-handler.exe") || !path_exists(handler)) {
+    set_error(L"The FACEIT Mods deep-link handler is missing from the setup payload");
+    return FALSE;
+  }
+  if (FAILED(StringCchPrintfW(command, PATH_CAPACITY * 2, L"\"%s\" \"%%1\"", handler))
+      || FAILED(StringCchPrintfW(icon, PATH_CAPACITY + 4, L"\"%s\"", faceit_exe))) {
+    set_error(L"The deep-link handler command is too long");
+    return FALSE;
+  }
+  BOOL registered = write_registry_string(L"Software\\Classes\\faceit-mods", NULL, L"URL:FACEIT Mods link")
+    && write_registry_string(L"Software\\Classes\\faceit-mods", L"URL Protocol", L"")
+    && write_registry_string(L"Software\\Classes\\faceit-mods\\DefaultIcon", NULL, icon)
+    && write_registry_string(L"Software\\Classes\\faceit-mods\\shell\\open\\command", NULL, command);
+  if (!registered) {
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\faceit-mods");
+    return FALSE;
+  }
+  SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
+  return TRUE;
+}
+
 static void set_install_state_marker(BOOL installed) {
   wchar_t mods_root[PATH_CAPACITY];
   wchar_t marker[PATH_CAPACITY];
   HANDLE file;
   DWORD written = 0;
-  const char contents[] = "installed\n";
+  char contents[256];
+  int length;
   if (!get_mods_root(mods_root, PATH_CAPACITY) || !ensure_directory(mods_root)) return;
   if (!join_path(marker, PATH_CAPACITY, mods_root, L"installed.marker")) return;
   if (!installed) {
     DeleteFileW(marker);
     return;
   }
+  length = WideCharToMultiByte(CP_UTF8, 0, APP_VERSION, -1, contents, 254, NULL, NULL);
+  if (length <= 1 || length >= 254) return;
+  contents[length - 1] = '\n';
+  contents[length] = '\0';
   file = CreateFileW(marker, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
   if (file == INVALID_HANDLE_VALUE) return;
-  WriteFile(file, contents, (DWORD)(sizeof(contents) - 1), &written, NULL);
+  WriteFile(file, contents, (DWORD)length, &written, NULL);
   CloseHandle(file);
+}
+
+static BOOL read_product_state_version(void) {
+  HKEY key;
+  DWORD type = 0;
+  DWORD size = sizeof(g_installed_version);
+  LONG status = RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\FACEIT Mods", 0, KEY_QUERY_VALUE, &key);
+  if (status != ERROR_SUCCESS) return FALSE;
+  status = RegQueryValueExW(key, L"DisplayVersion", NULL, &type, (BYTE *)g_installed_version, &size);
+  RegCloseKey(key);
+  if (status != ERROR_SUCCESS || (type != REG_SZ && type != REG_EXPAND_SZ) || size <= sizeof(wchar_t)) {
+    g_installed_version[0] = L'\0';
+    return FALSE;
+  }
+  g_installed_version[(sizeof(g_installed_version) / sizeof(wchar_t)) - 1] = L'\0';
+  return TRUE;
+}
+
+static BOOL read_install_state_marker(void) {
+  wchar_t mods_root[PATH_CAPACITY];
+  wchar_t marker[PATH_CAPACITY];
+  char contents[256];
+  HANDLE file;
+  DWORD read = 0;
+  int wide_length;
+  g_installed_version[0] = L'\0';
+  if (!get_mods_root(mods_root, PATH_CAPACITY)
+      || !join_path(marker, PATH_CAPACITY, mods_root, L"installed.marker")) return FALSE;
+  file = CreateFileW(marker, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+                     FILE_ATTRIBUTE_NORMAL, NULL);
+  if (file == INVALID_HANDLE_VALUE) return read_product_state_version();
+  if (!ReadFile(file, contents, sizeof(contents) - 1, &read, NULL)) {
+    CloseHandle(file);
+    return read_product_state_version();
+  }
+  CloseHandle(file);
+  contents[read] = '\0';
+  while (read > 0 && (contents[read - 1] == '\r' || contents[read - 1] == '\n')) contents[--read] = '\0';
+  if (strcmp(contents, "installed") == 0 || read == 0) {
+    read_product_state_version();
+    return TRUE;
+  }
+  wide_length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, contents, -1,
+                                    g_installed_version, (int)(sizeof(g_installed_version) / sizeof(wchar_t)));
+  if (wide_length <= 1 && !read_product_state_version()) g_installed_version[0] = L'\0';
+  return TRUE;
 }
 
 static int perform_setup(SetupAction action) {
@@ -472,10 +583,16 @@ static int perform_setup(SetupAction action) {
   post_status(action == ACTION_RESTORE ? L"Restoring the original FACEIT client..." : L"Patching the current FACEIT client...");
   post_progress(85);
   if (run_loader_command(action, install_root, faceit_root) != 0) return 14;
+  if (action == ACTION_INSTALL && (!register_deep_link_handler(install_root) || !write_product_state(install_root))) {
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\faceit-mods");
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\FACEIT Mods");
+    return 15;
+  }
   cleanup_legacy_payload_directories();
   set_install_state_marker(action == ACTION_INSTALL);
   if (action == ACTION_RESTORE) {
     RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\faceit-mods");
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\FACEIT Mods");
   }
   post_progress(100);
   post_status(action == ACTION_RESTORE ? L"FACEIT was restored." : L"FACEIT Mods is installed.");
@@ -644,7 +761,7 @@ static void set_button_texts(void) {
   else if (g_ui_state == UI_STATE_SUCCESS && g_completed_action == ACTION_INSTALL) primary_text = L"Open FACEIT";
   else if (g_ui_state == UI_STATE_SUCCESS && g_completed_action == ACTION_RESTORE) primary_text = L"Close";
   else if (g_ui_state == UI_STATE_ERROR) primary_text = L"Try again";
-  else primary_text = g_payload_installed ? L"Update" : L"Install";
+  else primary_text = g_payload_installed ? (g_payload_current ? L"Repair" : L"Update") : L"Install";
   SetWindowTextW(g_install, primary_text);
   SetWindowTextW(g_restore, L"Restore FACEIT");
   SetWindowTextW(g_open_folder, L"Open files");
@@ -660,8 +777,6 @@ static void set_controls_enabled(BOOL enabled) {
 static void initialize_preflight(void) {
   wchar_t executable[PATH_CAPACITY];
   wchar_t parent[PATH_CAPACITY];
-  wchar_t marker_path[PATH_CAPACITY];
-  wchar_t mods_root[PATH_CAPACITY];
   g_faceit_detected = find_latest_faceit_exe(executable, PATH_CAPACITY);
   if (g_faceit_detected && SUCCEEDED(StringCchCopyW(parent, PATH_CAPACITY, executable))) {
     wchar_t *separator = wcsrchr(parent, L'\\');
@@ -677,9 +792,9 @@ static void initialize_preflight(void) {
   } else {
     StringCchCopyW(g_faceit_text, 128, L"FACEIT desktop client not found");
   }
-  g_payload_installed = get_mods_root(mods_root, PATH_CAPACITY)
-    && join_path(marker_path, PATH_CAPACITY, mods_root, L"installed.marker")
-    && path_exists(marker_path);
+  g_payload_installed = read_install_state_marker();
+  g_payload_current = g_payload_installed && g_installed_version[0]
+    && _wcsicmp(g_installed_version, APP_VERSION) == 0;
   g_restore_available = restore_backup_exists();
   g_ui_state = UI_STATE_READY;
   g_progress_value = 0;
@@ -688,8 +803,14 @@ static void initialize_preflight(void) {
     StringCchCopyW(g_status_text, STATUS_CAPACITY, L"Install FACEIT for this Windows account, then run setup again.");
     StringCchCopyW(g_detail_text, STATUS_CAPACITY, L"Setup did not find a standard FACEIT app-* directory.");
   } else if (g_payload_installed) {
-    StringCchCopyW(g_status_text, STATUS_CAPACITY, L"Extension support is already installed and ready to update.");
-    StringCchCopyW(g_detail_text, STATUS_CAPACITY, L"FACEIT closes briefly while setup applies the local patch.");
+    if (g_installed_version[0]) {
+      StringCchPrintfW(g_status_text, STATUS_CAPACITY, L"Extension Loader %s is installed.", g_installed_version);
+    } else {
+      StringCchCopyW(g_status_text, STATUS_CAPACITY, L"An earlier Extension Loader build is installed.");
+    }
+    StringCchCopyW(g_detail_text, STATUS_CAPACITY, g_payload_current
+      ? L"Repair reapplies the current loader without changing extension data."
+      : L"Update replaces the loader while keeping installed extensions and settings.");
   } else {
     StringCchCopyW(g_status_text, STATUS_CAPACITY, L"Ready to install extension support.");
     StringCchCopyW(g_detail_text, STATUS_CAPACITY, L"FACEIT closes briefly while setup applies the local patch.");
@@ -1165,6 +1286,8 @@ static LRESULT CALLBACK window_proc(HWND window, UINT message, WPARAM w_param, L
         g_progress_value = 100;
         g_install_complete = action == ACTION_INSTALL;
         g_payload_installed = action == ACTION_INSTALL;
+        g_payload_current = action == ACTION_INSTALL;
+        StringCchCopyW(g_installed_version, 128, action == ACTION_INSTALL ? APP_VERSION : L"");
         g_restore_available = restore_backup_exists();
         StringCchCopyW(g_status_text, STATUS_CAPACITY,
                        action == ACTION_RESTORE ? L"The original FACEIT client files are active."

@@ -28,6 +28,8 @@ if errorlevel 1 (
   exit /b 1
 )
 reg delete "HKCU\Software\Classes\faceit-mods" /f >nul 2>nul
+reg delete "HKCU\Software\FACEIT Mods" /f >nul 2>nul
+del /q "%LOCALAPPDATA%\FACEIT Mods\installed.marker" >nul 2>nul
 echo Removed the FACEIT Mods install-link handler.
 echo.
 pause
