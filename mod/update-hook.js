@@ -47,7 +47,7 @@ function patchPendingFaceitUpdate(options = {}) {
 
   const paths = resolveUpdateHookPaths(env);
   if (!paths) {
-    logger.warn('FACEIT update was downloaded, but LOCALAPPDATA is unavailable; run FACEIT Mods Setup again');
+    logger.warn('FACEIT update was downloaded, but LOCALAPPDATA is unavailable; run FACEIT Extension Loader Setup again');
     return { attempted: false, reason: 'local-app-data-unavailable' };
   }
   if (!fsApi.existsSync(paths.scriptPath)) {

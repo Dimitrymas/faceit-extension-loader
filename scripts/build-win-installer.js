@@ -14,9 +14,9 @@ const bundleRoot = projectRoot;
 const sourceRoot = path.join(projectRoot, 'native-installer');
 const iconPath = path.join(sourceRoot, 'faceit-mods.ico');
 const buildRoot = path.join(projectRoot, 'dist', `win-installer-build-${version}`);
-const outputName = `FACEIT-Mods-Setup-${version}-x64.exe`;
+const outputName = `FACEIT-Extension-Loader-Setup-${version}-x64.exe`;
 const output = path.join(projectRoot, 'dist', outputName);
-const currentOutput = path.join(projectRoot, 'dist', 'FACEIT-Mods-Setup-x64.exe');
+const currentOutput = path.join(projectRoot, 'dist', 'FACEIT-Extension-Loader-Setup-x64.exe');
 const payloadHeader = path.join(buildRoot, 'payload_manifest.h');
 const resourceScript = path.join(buildRoot, 'installer.rc');
 const resourceObject = path.join(buildRoot, 'installer-resources.o');
@@ -33,6 +33,7 @@ function main() {
     run('x86_64-w64-mingw32-windres', ['--codepage=65001', '-I', buildRoot, resourceScript, '-O', 'coff', '-o', resourceObject]);
     run('x86_64-w64-mingw32-gcc', [
       '-std=c11', '-Os', '-Wall', '-Wextra', '-Werror', '-municode', '-mwindows', '-static', '-s',
+      ...(process.env.FACEIT_INSTALLER_CAPTURE === '1' ? ['-DFACEIT_INSTALLER_CAPTURE'] : []),
       '-I', buildRoot,
       path.join(sourceRoot, 'installer.c'), resourceObject,
       '-o', output,
@@ -94,7 +95,7 @@ function writePayloadHeader(files) {
   fs.writeFileSync(payloadHeader, [
     '#pragma once',
     '',
-    `#define APP_TITLE L"FACEIT Mods Setup"`,
+    `#define APP_TITLE L"FACEIT Extension Loader Setup"`,
     `#define APP_VERSION L"${escapeCString(version)}"`,
     `#define PAYLOAD_COUNT ${files.length}`,
     '',
@@ -128,11 +129,11 @@ function writeResourceScript(files) {
     '    BLOCK "040904b0"',
     '    BEGIN',
     '      VALUE "CompanyName", "Dimitrymas\\0"',
-    '      VALUE "FileDescription", "FACEIT Mods Setup (unofficial)\\0"',
+    '      VALUE "FileDescription", "FACEIT Extension Loader Setup (unofficial)\\0"',
     `      VALUE "FileVersion", "${version}\\0"`,
-    '      VALUE "InternalName", "FACEITModsSetup\\0"',
+    '      VALUE "InternalName", "FACEITExtensionLoaderSetup\\0"',
     `      VALUE "OriginalFilename", "${path.basename(output)}\\0"`,
-    '      VALUE "ProductName", "FACEIT Mods Setup\\0"',
+    '      VALUE "ProductName", "FACEIT Extension Loader Setup\\0"',
     `      VALUE "ProductVersion", "${version}\\0"`,
     '    END',
     '  END',

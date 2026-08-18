@@ -45,7 +45,7 @@ const previewState = {
     { key: 'forecast', id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'FACEIT Forecast', version: '2.1.3', enabled: true, state: 'loaded', hasAction: true, hasOptions: false, source: 'marketplace', marketplaceId: 'faceit-forecast' },
     { key: 'heatcheck', id: 'cccccccccccccccccccccccccccccccc', name: 'Heatcheck', version: '1.8.2', enabled: false, state: 'disabled', hasAction: true, hasOptions: true, source: 'marketplace', marketplaceId: 'heatcheck' },
   ],
-  loader: { version: '0.3.0-beta.21' },
+  loader: { version: '0.3.0-beta.22' },
   marketplace: {
     extensions: [
       { id: 'repeek', extensionId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'Repeek', monogram: 'R', accent: '#ff5500', category: 'Stats', audience: 'Players', tagline: 'Matchroom and player insights', installed: true },

@@ -1,7 +1,7 @@
 FACEIT Mods for Windows - beta
 ==============================
 
-This is the portable fallback package. The native FACEIT-Mods-Setup executable
+This is the portable fallback package. The native FACEIT-Extension-Loader-Setup executable
 is the recommended installation path. Both patch only the current FACEIT install.
 
 Steps:
