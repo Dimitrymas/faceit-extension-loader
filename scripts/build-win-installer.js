@@ -146,7 +146,7 @@ function writeResourceScript(files) {
     '  BEGIN',
     '    BLOCK "040904b0"',
     '    BEGIN',
-    '      VALUE "CompanyName", "Dimitrymas\\0"',
+    '      VALUE "CompanyName", "AddonPort\\0"',
     '      VALUE "FileDescription", "AddonPort for FACEIT Setup (unofficial)\\0"',
     `      VALUE "FileVersion", "${version}\\0"`,
     '      VALUE "InternalName", "AddonPortForFACEITSetup\\0"',

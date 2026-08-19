@@ -66,8 +66,8 @@ All notable changes to AddonPort for FACEIT are documented here. The format foll
 - Added the in-client extension manager, Chrome Web Store installation, compatibility bridges, and diagnostics.
 - Added CI, development prereleases, dependency automation, and versioned release builds.
 
-[Unreleased]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.24...HEAD
-[0.3.0-beta.24]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.23...v0.3.0-beta.24
-[0.3.0-beta.23]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.22...v0.3.0-beta.23
-[0.3.0-beta.22]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.21...v0.3.0-beta.22
-[0.3.0-beta.21]: https://github.com/Dimitrymas/faceit-extension-loader/releases/tag/v0.3.0-beta.21
+[Unreleased]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.24...HEAD
+[0.3.0-beta.24]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.23...v0.3.0-beta.24
+[0.3.0-beta.23]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.22...v0.3.0-beta.23
+[0.3.0-beta.22]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.21...v0.3.0-beta.22
+[0.3.0-beta.21]: https://github.com/AddonPort/faceit/releases/tag/v0.3.0-beta.21
