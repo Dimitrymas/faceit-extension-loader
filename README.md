@@ -121,7 +121,9 @@ node .\bin\faceit-extension-loader.js patch "$env:LOCALAPPDATA\FACEIT"
 node .\bin\faceit-extension-loader.js restore "$env:LOCALAPPDATA\FACEIT"
 ```
 
-See [Architecture](docs/ARCHITECTURE.md), [Contributing](CONTRIBUTING.md), and the [Changelog](CHANGELOG.md) before changing patch, update, or release behavior.
+See [Architecture](docs/ARCHITECTURE.md), [Code signing](docs/CODE_SIGNING.md),
+[Contributing](CONTRIBUTING.md), and the [Changelog](CHANGELOG.md) before changing patch, update, or
+release behavior.
 
 ## Project Boundary
 
