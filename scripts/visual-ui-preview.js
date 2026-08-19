@@ -45,14 +45,14 @@ const previewState = {
   extensions: [
     { key: 'peekstats', id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'PeekStats', version: '2.1.6', enabled: true, state: 'loaded', hasAction: true, hasOptions: true, source: 'marketplace', marketplaceId: 'peekstats' },
     { key: 'forecast', id: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'FACEIT Forecast', version: '2.1.3', enabled: true, state: 'loaded', hasAction: true, hasOptions: false, source: 'marketplace', marketplaceId: 'faceit-forecast' },
-    { key: 'heatcheck', id: 'cccccccccccccccccccccccccccccccc', name: 'Heatcheck', version: '1.8.2', enabled: false, state: 'disabled', hasAction: true, hasOptions: true, source: 'marketplace', marketplaceId: 'heatcheck' },
+    { key: 'repeek', id: 'cccccccccccccccccccccccccccccccc', name: 'Repeek', version: '5.6.10', enabled: false, state: 'disabled', hasAction: true, hasOptions: true, source: 'marketplace', marketplaceId: 'repeek' },
   ],
   loader: { version: packageJson.version },
   marketplace: {
     extensions: [
       { id: 'peekstats', extensionId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', name: 'PeekStats', monogram: 'P', accent: '#4f7fe8', category: 'Statistics', audience: 'Players', tagline: 'Player statistics and match insights', installed: true },
       { id: 'faceit-forecast', extensionId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', name: 'FACEIT Forecast', monogram: 'F', accent: '#2878c7', category: 'Prediction', audience: 'Players', tagline: 'Match forecasts', installed: true, pageLauncherSelectors: ['#fc-logo-button'] },
-      { id: 'heatcheck', extensionId: 'cccccccccccccccccccccccccccccccc', name: 'Heatcheck', monogram: 'H', accent: '#9b3f57', category: 'Stats', audience: 'Players', tagline: 'Performance trends', installed: true },
+      { id: 'repeek', extensionId: 'cccccccccccccccccccccccccccccccc', name: 'Repeek', monogram: 'R', accent: '#f2f2f2', category: 'Utility', audience: 'Players', tagline: 'Ready-up and ELO tools', installed: true },
     ],
   },
   userDataPath: 'C:\\Users\\dimit\\AppData\\Roaming\\FACEIT\\extension-loader',
@@ -325,7 +325,7 @@ async function render() {
             name: 'Chrome Web Store extension',
             permissions: [
               'Permissions declared by the downloaded extension package',
-              'Only supported FACEIT origins are granted by FACEIT Mods',
+              'Only supported FACEIT origins are granted by AddonPort for FACEIT',
             ],
             source: 'webstore',
             tagline: `Extension id ${extensionId}`,

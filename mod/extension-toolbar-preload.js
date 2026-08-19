@@ -47,7 +47,7 @@ if (shouldInject()) {
     refreshState({ quiet: true });
     observeAppShell();
     installDeepLinkListener();
-    logRenderer('FACEIT Mods ready', { href: location.href, userAgent: navigator.userAgent });
+    logRenderer('AddonPort ready', { href: location.href, userAgent: navigator.userAgent });
   });
 }
 
@@ -196,7 +196,7 @@ function ensureFallbackButton() {
     const dock = document.createElement('div');
     dock.className = 'dock';
     dock.dataset.hasActions = 'false';
-    dock.innerHTML = `<div class="dock-actions" data-role="dock-actions"><slot name="extension-launcher"></slot></div><button class="dock-button mods-button" type="button" title="FACEIT Mods" aria-label="FACEIT Mods" aria-pressed="false">${iconMarkup('boxes')}<span class="badge" aria-hidden="true"></span></button>`;
+    dock.innerHTML = `<div class="dock-actions" data-role="dock-actions"><slot name="extension-launcher"></slot></div><button class="dock-button mods-button" type="button" title="AddonPort" aria-label="AddonPort" aria-pressed="false">${iconMarkup('boxes')}<span class="badge" aria-hidden="true"></span></button>`;
     dock.querySelector('.mods-button').addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -433,11 +433,11 @@ function createPanelElement() {
   const shell = document.createElement('div');
   shell.className = 'manager-shell';
   shell.innerHTML = `
-    <button class="scrim" type="button" aria-label="Close FACEIT Mods" data-role="scrim"></button>
-    <aside class="panel" role="dialog" aria-modal="true" aria-label="FACEIT Mods" aria-hidden="true">
+    <button class="scrim" type="button" aria-label="Close AddonPort" data-role="scrim"></button>
+    <aside class="panel" role="dialog" aria-modal="true" aria-label="AddonPort" aria-hidden="true">
       <header class="topbar">
         <div class="brand-mark" aria-hidden="true">${iconMarkup('boxes')}</div>
-        <div class="brand-copy"><div class="brand-title">FACEIT Mods</div><div class="brand-status" data-role="header-status">Connecting</div></div>
+        <div class="brand-copy"><div class="brand-title">AddonPort</div><div class="brand-status" data-role="header-status">Connecting</div></div>
         <button class="icon-button" type="button" title="Settings" aria-label="Settings" data-role="settings">${iconMarkup('settings')}</button>
         <button class="icon-button" type="button" title="Close" aria-label="Close" data-role="close">${iconMarkup('x')}</button>
       </header>
@@ -524,7 +524,7 @@ async function refreshState(options = {}) {
   if (runtimeState.isRefreshing) return;
   runtimeState.isRefreshing = true;
   try {
-    if (!ipcRenderer || typeof ipcRenderer.invoke !== 'function') throw new Error('FACEIT Mods bridge is unavailable');
+    if (!ipcRenderer || typeof ipcRenderer.invoke !== 'function') throw new Error('AddonPort bridge is unavailable');
     runtimeState.latestState = await ipcRenderer.invoke(IPC_GET_STATE);
     renderPanelState(runtimeState.latestState);
     await revealPendingDeepLink(runtimeState.latestState);
@@ -553,8 +553,10 @@ async function revealPendingDeepLink(state) {
   runtimeState.activeView = 'installed';
   setPanelOpen(true);
   renderPanelState(state);
-  const acknowledged = await runManagerOperation({ operation: 'ack-deeplink', token: request.token }, { requiresReload: false });
-  if (!acknowledged || request.action !== 'launch') return;
+  if (request.action !== 'launch') {
+    await runManagerOperation({ operation: 'ack-deeplink', token: request.token }, { requiresReload: false });
+    return;
+  }
   const extensions = Array.isArray(runtimeState.latestState && runtimeState.latestState.extensions)
     ? runtimeState.latestState.extensions
     : [];
@@ -563,13 +565,20 @@ async function revealPendingDeepLink(state) {
   ));
   if (!extension) {
     showToast('That extension is not installed.', 'error');
+    await runManagerOperation({ operation: 'fail-deeplink', reason: 'not_installed', token: request.token }, { requiresReload: false });
     return;
   }
   if (extension.state !== 'loaded' || !extension.hasAction) {
     showToast('That extension does not have an available action.', 'error');
+    await runManagerOperation({ operation: 'fail-deeplink', reason: 'action_unavailable', token: request.token }, { requiresReload: false });
     return;
   }
-  await openExtensionAction(extension, 'deeplink');
+  const opened = await openExtensionAction(extension, 'deeplink');
+  await runManagerOperation({
+    operation: opened ? 'ack-deeplink' : 'fail-deeplink',
+    ...(opened ? {} : { reason: 'launch_failed' }),
+    token: request.token,
+  }, { requiresReload: false });
 }
 
 function renderPanelState(state) {
@@ -854,7 +863,7 @@ function renderInstalledScreen(state) {
 async function openExtensionAction(extension, source) {
   if (extension && runtimeState.actionPopupExtensionId === extension.id && isActionPopupOpen()) {
     closeEmbeddedExtensionPopup();
-    return;
+    return true;
   }
   logRenderer('quick action requested', { extensionId: extension.id, key: extension.key, name: extension.name, source });
   const result = await runExtensionOperation(extension, { operation: 'open-extension-surface', surface: 'action' }, null, false);
@@ -863,6 +872,7 @@ async function openExtensionAction(extension, source) {
   } else if (!result) {
     setPanelOpen(true);
   }
+  return Boolean(result);
 }
 
 function createInstalledRow(extension, state) {
@@ -971,8 +981,8 @@ function renderInstallRequestScreen(state) {
   notice.className = 'install-request-note';
   notice.innerHTML = iconMarkup('shield');
   notice.appendChild(document.createTextNode(request.source === 'webstore'
-    ? 'A website requested this installation. The package will come from the Chrome Web Store, but it has not been reviewed in the FACEIT Mods catalog.'
-    : 'A website requested this installation. FACEIT Mods will only install the reviewed catalog package after you confirm.'));
+    ? 'A website requested this installation. The package will come from the Chrome Web Store, but it has not been reviewed in the AddonPort catalog.'
+    : 'A website requested this installation. AddonPort will only install the reviewed catalog package after you confirm.'));
   hero.append(heading, createTextNode('p', 'detail-tagline', listing.tagline), notice);
 
   const actions = document.createElement('div');
@@ -1073,7 +1083,7 @@ function createCompatibilityLabel(listing) {
   const unreviewed = listing.compatibility === 'unreviewed';
   node.innerHTML = iconMarkup(tested ? 'badge-check' : (unreviewed ? 'shield-alert' : 'flask'));
   node.appendChild(document.createTextNode(tested
-    ? 'Tested with FACEIT Mods'
+    ? 'Tested with AddonPort for FACEIT'
     : (unreviewed ? 'Not reviewed in the catalog' : 'Experimental compatibility')));
   return node;
 }
@@ -1194,7 +1204,7 @@ async function runExtensionOperation(extension, request, successMessage, require
 
 async function runManagerOperation(request, options = {}) {
   if (!ipcRenderer || typeof ipcRenderer.invoke !== 'function') {
-    showToast('FACEIT Mods bridge is unavailable.', 'error');
+    showToast('AddonPort bridge is unavailable.', 'error');
     return null;
   }
   logRenderer('manager operation requested', {
@@ -1264,7 +1274,7 @@ function renderFatalError(error) {
   const content = runtimeState.panelRoot && runtimeState.panelRoot.querySelector('[data-role="content"]');
   if (!content) return;
   replaceChildren(content);
-  content.appendChild(createEmptyState('alert-triangle', 'FACEIT Mods did not start', error.message || String(error)));
+  content.appendChild(createEmptyState('alert-triangle', 'AddonPort did not start', error.message || String(error)));
 }
 
 function showToast(message, type = 'info') {

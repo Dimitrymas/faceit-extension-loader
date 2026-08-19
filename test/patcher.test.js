@@ -37,7 +37,7 @@ test('release notes come from the matching changelog section', () => {
 
   if (!/-dev\.\d+$/.test(packageVersion)) assert.equal(releaseVersion, packageVersion);
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /stable `faceit-mods:\/\/open`/);
+  assert.match(result.stdout, /`addonport:\/\/` protocol/);
   assert.match(result.stdout, /### Security/);
   assert.equal(result.stdout.includes('0.3.0-beta.22'), false);
 
@@ -506,6 +506,7 @@ test('mod manager exposes marketplace, lifecycle, window, and diagnostic operati
     'install-deeplink',
     'dismiss-deeplink',
     'ack-deeplink',
+    'fail-deeplink',
     'create-shortcut',
     'set-enabled',
     'reload',
@@ -540,12 +541,12 @@ test('mod manager exposes marketplace, lifecycle, window, and diagnostic operati
   assert.match(toolbar, /pageReloadRequired/);
 });
 
-test('FACEIT Mods launcher tracks the visible right sidebar without joining the React tree', () => {
+test('AddonPort launcher tracks the visible right sidebar without joining the React tree', () => {
   const toolbar = fs.readFileSync(path.join(__dirname, '..', 'mod', 'extension-toolbar-preload.js'), 'utf8');
 
   assert.match(toolbar, /RIGHT_SIDEBAR_SELECTOR = '\[class\*="SideBarContainer"\]'/);
   assert.match(toolbar, /attachShadow\(\{ mode: 'open' \}\)/);
-  assert.match(toolbar, /aria-label="FACEIT Mods"/);
+  assert.match(toolbar, /aria-label="AddonPort"/);
   assert.match(toolbar, /function isVisibleRightSidebar\(sidebar\)/);
   assert.match(toolbar, /style\.visibility === 'hidden'/);
   assert.match(toolbar, /function isVisibleSidebarRect\(rect\)/);
@@ -676,7 +677,7 @@ test('embedded extension actions attach, resize, and detach inside the FACEIT wi
   assert.equal(parentMessages.at(-1).payload.open, false);
 });
 
-test('deep links expose strict open, install, and launch actions', () => {
+test('deep links expose strict legacy and AddonPort actions', () => {
   const bootstrap = fs.readFileSync(path.join(__dirname, '..', 'mod', 'bootstrap.js'), 'utf8');
   const helpers = loadBootstrapTestFunctions();
 
@@ -700,6 +701,28 @@ test('deep links expose strict open, install, and launch actions', () => {
     href: 'faceit-mods://launch/mpkkcddegpblmobincjkbpgfcbejjbcp',
     target: 'mpkkcddegpblmobincjkbpgfcbejjbcp',
   });
+  assert.deepEqual({ ...helpers.parseDeepLink('addonport://open') }, {
+    action: 'open',
+    href: 'addonport://open',
+  });
+  assert.deepEqual({ ...helpers.parseDeepLink('addonport://install/faceit-forecast') }, {
+    action: 'install',
+    href: 'addonport://install/faceit-forecast',
+    target: 'faceit-forecast',
+  });
+  assert.deepEqual({ ...helpers.parseDeepLink('addonport://launch/mpkkcddegpblmobincjkbpgfcbejjbcp') }, {
+    action: 'launch',
+    href: 'addonport://launch/mpkkcddegpblmobincjkbpgfcbejjbcp',
+    target: 'mpkkcddegpblmobincjkbpgfcbejjbcp',
+  });
+  const sessionId = '0123456789abcdefghij';
+  const claimToken = 'abcdefghijklmnopqrstuvwxyz_ABCDE-12345';
+  assert.deepEqual({ ...helpers.parseDeepLink(`addonport://connect/${sessionId}/${claimToken}`) }, {
+    action: 'connect',
+    claimToken,
+    href: `addonport://connect/${sessionId}/${claimToken}`,
+    sessionId,
+  });
   assert.deepEqual({ ...helpers.resolveDeepLinkInstallTarget('faceit-forecast') }, {
     extensionId: 'mpkkcddegpblmobincjkbpgfcbejjbcp',
     marketplaceId: 'faceit-forecast',
@@ -713,6 +736,9 @@ test('deep links expose strict open, install, and launch actions', () => {
   assert.throws(() => helpers.parseDeepLink('faceit-mods://install?id=faceit-forecast'), /Unsupported/);
   assert.throws(() => helpers.parseDeepLink('faceit-mods://install/%66aceit-forecast'), /unsupported/i);
   assert.throws(() => helpers.parseDeepLink('faceit-mods://install/%2e%2e%2fforecast'), /unsupported/i);
+  assert.throws(() => helpers.parseDeepLink(`addonport://connect/${sessionId}/short`), /malformed/i);
+  assert.throws(() => helpers.parseDeepLink('addonport://connect/session/token?host=example.com'), /Unsupported/);
+  assert.throws(() => helpers.parseDeepLink('addonport://install/%2e%2e%2fforecast'), /Unsupported/);
   assert.throws(() => helpers.parseDeepLink('https://example.com/install/faceit-forecast'), /Unsupported/);
 });
 
@@ -791,7 +817,9 @@ test('Windows maintenance scripts warn and close only the FACEIT desktop client'
     assert.match(script, /if errorlevel 1/);
   }
   assert.match(restoreScript, /reg delete "HKCU\\Software\\Classes\\faceit-mods"/);
+  assert.match(restoreScript, /reg delete "HKCU\\Software\\Classes\\addonport"/);
   assert.match(restoreScript, /reg delete "HKCU\\Software\\FACEIT Mods"/);
+  assert.match(restoreScript, /reg delete "HKCU\\Software\\AddonPort\\FACEIT"/);
   assert.match(patchScript, /install-update-hook-payload\.js/);
   assert.match(patchScript, /FACEIT Mods\\current/);
   assert.match(patchScript, /Join-Path \$root 'FACEIT\.exe'/);
@@ -819,7 +847,7 @@ test('native Windows setup uses the FACEIT Electron runtime and stays current-us
   assert.match(manifest, /requestedExecutionLevel level="asInvoker"/);
   assert.match(buildScript, /RCDATA/);
   assert.match(buildScript, /faceit-mods\.ico/);
-  assert.match(buildScript, /FACEIT-Extension-Loader-Setup/);
+  assert.match(buildScript, /AddonPort-for-FACEIT-Setup/);
   assert.match(buildScript, /ICON/);
   assert.match(buildScript, /-Werror/);
   assert.match(buildScript, /sha256/);
@@ -854,6 +882,8 @@ test('native Windows setup uses the FACEIT Electron runtime and stays current-us
   assert.match(installer, /RegQueryValueExW\(key, L"DisplayVersion"/);
   assert.match(installer, /DisplayVersion/);
   assert.match(installer, /ProtocolVersion/);
+  assert.match(installer, /Software\\\\AddonPort\\\\FACEIT/);
+  assert.match(installer, /L"addonport"/);
   assert.match(installer, /L"Repair"/);
   assert.match(installer, /DWMWA_USE_IMMERSIVE_DARK_MODE/);
   assert.match(installer, /WM_DPICHANGED/);
@@ -868,7 +898,10 @@ test('native Windows setup uses the FACEIT Electron runtime and stays current-us
   assert.equal(fs.existsSync(path.join(projectRoot, 'native-installer', 'faceit-mods.ico')), true);
   assert.match(buildScript, /buildProtocolHandler/);
   assert.match(buildScript, /faceit-mods-handler\.exe/);
-  assert.match(protocolHandler, /DEEP_LINK_PREFIX L"faceit-mods:\/\/"/);
+  assert.match(protocolHandler, /LEGACY_DEEP_LINK_PREFIX L"faceit-mods:\/\/"/);
+  assert.match(protocolHandler, /ADDONPORT_DEEP_LINK_PREFIX L"addonport:\/\/"/);
+  assert.match(protocolHandler, /connect\//);
+  assert.match(protocolHandler, /valid_session_component/);
   assert.match(protocolHandler, /wcscmp\(action, L"open"\)/);
   assert.match(protocolHandler, /install\//);
   assert.match(protocolHandler, /launch\//);

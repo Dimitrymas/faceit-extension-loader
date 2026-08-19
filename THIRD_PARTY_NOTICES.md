@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-FACEIT Client Extension Loader Patch includes third-party software. The complete
+AddonPort for FACEIT includes third-party software. The complete
 license texts shipped by npm dependencies remain alongside those dependencies
 under `node_modules`.
 

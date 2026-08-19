@@ -31,7 +31,11 @@ const IPC_DEEP_LINK = 'faceit-extension-loader:deep-link';
 const IPC_ACTION_POPUP_CONTROL = 'faceit-extension-loader:action-popup-control';
 const IPC_ACTION_POPUP_HOST = 'faceit-extension-loader:action-popup-host';
 const IPC_ACTION_POPUP_STATE = 'faceit-extension-loader:action-popup-state';
-const DEEP_LINK_PROTOCOL = 'faceit-mods';
+const LEGACY_DEEP_LINK_PROTOCOL = 'faceit-mods';
+const ADDONPORT_DEEP_LINK_PROTOCOL = 'addonport';
+const ADDONPORT_CONNECT_ORIGIN = 'https://connect.addonport.dev';
+const ADDONPORT_RESPONSE_LIMIT = 64 * 1024;
+const ADDONPORT_REQUEST_TIMEOUT = 8000;
 const RECENT_LOG_LINE_LIMIT = 140;
 const MARKETPLACE_DOWNLOAD_LIMIT = 96 * 1024 * 1024;
 const MARKETPLACE_EXTRACT_LIMIT = 256 * 1024 * 1024;
@@ -56,6 +60,8 @@ const queuedDeepLinks = [];
 
 let pendingInstallRequest = null;
 let pendingNavigationRequest = null;
+let pendingAddonPortSession = null;
+let addonPortConnectGeneration = 0;
 let deepLinkRuntime = null;
 
 let electron;
@@ -88,7 +94,7 @@ function registerExtensionLoader({ app, autoUpdater, BrowserView, BrowserWindow,
   queueDeepLinksFromArguments(process.argv);
   app.on('second-instance', (_event, commandLine) => queueDeepLinksFromArguments(commandLine));
   app.on('open-url', (event, value) => {
-    if (!isFaceitModsDeepLink(value)) return;
+    if (!isSupportedDeepLink(value)) return;
     event.preventDefault();
     queueDeepLink(value);
   });
@@ -177,7 +183,7 @@ function initializeDeepLinks({ BrowserWindow, logger }) {
 
 function queueDeepLinksFromArguments(args) {
   for (const value of toArray(args)) {
-    if (isFaceitModsDeepLink(value)) queueDeepLink(value);
+    if (isSupportedDeepLink(value)) queueDeepLink(value);
   }
 }
 
@@ -189,27 +195,62 @@ function queueDeepLink(value) {
   queuedDeepLinks.push(value);
 }
 
-function isFaceitModsDeepLink(value) {
-  return typeof value === 'string' && value.toLowerCase().startsWith(`${DEEP_LINK_PROTOCOL}://`);
+function isSupportedDeepLink(value) {
+  if (typeof value !== 'string') return false;
+  const normalized = value.toLowerCase();
+  return normalized.startsWith(`${LEGACY_DEEP_LINK_PROTOCOL}://`)
+    || normalized.startsWith(`${ADDONPORT_DEEP_LINK_PROTOCOL}://`);
 }
 
 function parseDeepLink(value) {
   const url = new URL(value);
-  if (url.protocol !== `${DEEP_LINK_PROTOCOL}:` || url.username || url.password || url.port || url.search || url.hash) {
-    throw new Error('Unsupported FACEIT Mods link');
+  if (url.username || url.password || url.port || url.search || url.hash) {
+    throw new Error('Unsupported AddonPort link');
+  }
+  if (url.protocol === `${ADDONPORT_DEEP_LINK_PROTOCOL}:`) {
+    const action = url.hostname.toLowerCase();
+    const segments = url.pathname.split('/').filter(Boolean);
+    if (action === 'open' && segments.length === 0) {
+      return { action, href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://open` };
+    }
+    if (['install', 'launch'].includes(action) && segments.length === 1
+        && /^[a-z0-9-]{1,64}$/.test(segments[0])) {
+      return {
+        action,
+        href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://${action}/${segments[0]}`,
+        target: segments[0],
+      };
+    }
+    if (action !== 'connect' || segments.length !== 2) {
+      throw new Error('Unsupported AddonPort link');
+    }
+    const [sessionId, claimToken] = segments;
+    if (!/^[A-Za-z0-9_-]{20,64}$/.test(sessionId)
+        || !/^[A-Za-z0-9_-]{32,128}$/.test(claimToken)) {
+      throw new Error('The AddonPort session link is malformed');
+    }
+    return {
+      action: 'connect',
+      claimToken,
+      href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://connect/${sessionId}/${claimToken}`,
+      sessionId,
+    };
+  }
+  if (url.protocol !== `${LEGACY_DEEP_LINK_PROTOCOL}:`) {
+    throw new Error('Unsupported AddonPort link');
   }
   const action = url.hostname.toLowerCase();
   const segments = url.pathname.split('/').filter(Boolean);
   if (action === 'open' && segments.length === 0) {
-    return { action, href: `${DEEP_LINK_PROTOCOL}://open` };
+    return { action, href: `${LEGACY_DEEP_LINK_PROTOCOL}://open` };
   }
   if (!['install', 'launch'].includes(action) || segments.length !== 1 || !/^[a-z0-9-]{1,64}$/.test(segments[0])) {
-    throw new Error('The FACEIT Mods link contains an unsupported action or target');
+    throw new Error('The legacy AddonPort link contains an unsupported action or target');
   }
   const target = segments[0];
   return {
     action,
-    href: `${DEEP_LINK_PROTOCOL}://${action}/${target}`,
+    href: `${LEGACY_DEEP_LINK_PROTOCOL}://${action}/${target}`,
     target,
   };
 }
@@ -217,6 +258,12 @@ function parseDeepLink(value) {
 function processDeepLink(value, { BrowserWindow, logger }) {
   try {
     const parsed = parseDeepLink(value);
+    if (parsed.action === 'connect') {
+      void processAddonPortConnect(parsed, { BrowserWindow, logger });
+      return;
+    }
+    addonPortConnectGeneration += 1;
+    rejectPendingAddonPortSession('A direct AddonPort link replaced this request', logger);
     const request = {
       action: parsed.action,
       href: parsed.href,
@@ -238,8 +285,190 @@ function processDeepLink(value, { BrowserWindow, logger }) {
     focusFaceitWindow(BrowserWindow);
     notifyDeepLinkRenderers(BrowserWindow, pendingInstallRequest || pendingNavigationRequest);
   } catch (error) {
-    logger.warn('rejected FACEIT Mods link', error);
+    logger.warn('rejected extension loader link', error);
   }
+}
+
+async function processAddonPortConnect(parsed, { BrowserWindow, logger }) {
+  const generation = addonPortConnectGeneration + 1;
+  addonPortConnectGeneration = generation;
+  try {
+    rejectPendingAddonPortSession('A newer AddonPort request replaced this session', logger);
+    pendingInstallRequest = null;
+    pendingNavigationRequest = null;
+
+    const snapshot = await requestAddonPortSession({
+      action: 'claim',
+      claimToken: parsed.claimToken,
+      sessionId: parsed.sessionId,
+      body: {
+        client: {
+          adapter: 'addonport-for-faceit',
+          platform: process.platform,
+          version: readAppliedLoaderVersion(),
+        },
+      },
+    });
+    if (generation !== addonPortConnectGeneration) {
+      await requestAddonPortSession({
+        action: 'transition',
+        body: { state: 'rejected', result: { message: 'A newer AddonPort request replaced this session' } },
+        claimToken: parsed.claimToken,
+        sessionId: parsed.sessionId,
+      }).catch(() => null);
+      return;
+    }
+    const intent = validateAddonPortSnapshot(snapshot, parsed.sessionId);
+    const request = {
+      action: intent.action,
+      href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://connect`,
+      requestedAt: new Date().toISOString(),
+      token: crypto.randomUUID(),
+    };
+    pendingAddonPortSession = {
+      claimToken: parsed.claimToken,
+      requestToken: request.token,
+      sessionId: parsed.sessionId,
+      transitionPromise: Promise.resolve(),
+    };
+
+    if (intent.action === 'install') {
+      const installTarget = resolveDeepLinkInstallTarget(intent.target);
+      pendingInstallRequest = { ...request, ...installTarget };
+      void reportPendingAddonPortSession('awaiting_confirmation', null, logger);
+      logger.info(`received AddonPort install request for ${installTarget.marketplaceId
+        ? `catalog extension ${installTarget.marketplaceId}`
+        : `Chrome Web Store extension ${installTarget.extensionId}`}`);
+    } else {
+      pendingNavigationRequest = { ...request, ...(intent.target ? { target: intent.target } : {}) };
+      logger.info(`received AddonPort ${intent.action} request${intent.target ? ` for ${intent.target}` : ''}`);
+    }
+    focusFaceitWindow(BrowserWindow);
+    notifyDeepLinkRenderers(BrowserWindow, pendingInstallRequest || pendingNavigationRequest);
+  } catch (error) {
+    logger.warn('failed to claim AddonPort session', error);
+    if (generation === addonPortConnectGeneration) {
+      await requestAddonPortSession({
+        action: 'transition',
+        body: {
+          state: 'failed',
+          error: { code: 'adapter_error', message: 'AddonPort for FACEIT could not process the request' },
+        },
+        claimToken: parsed.claimToken,
+        sessionId: parsed.sessionId,
+      }).catch(() => null);
+      pendingAddonPortSession = null;
+    }
+  }
+}
+
+function validateAddonPortSnapshot(snapshot, expectedSessionId) {
+  if (!snapshot || snapshot.protocolVersion !== 2 || snapshot.sessionId !== expectedSessionId
+      || snapshot.state !== 'client_opened' || !snapshot.intent || typeof snapshot.intent !== 'object') {
+    throw new Error('The AddonPort service returned an invalid claim response');
+  }
+  const { action, target } = snapshot.intent;
+  if (action === 'open' && target === undefined) return { action };
+  if (!['install', 'launch'].includes(action) || typeof target !== 'string'
+      || !/^[a-z0-9-]{1,64}$/.test(target)) {
+    throw new Error('The AddonPort session contains an unsupported intent');
+  }
+  return { action, target };
+}
+
+function readAppliedLoaderVersion() {
+  try {
+    const applied = JSON.parse(fs.readFileSync(APPLIED_MARKER, 'utf8'));
+    return typeof applied.version === 'string' && applied.version ? applied.version.slice(0, 32) : 'unknown';
+  } catch (_error) {
+    return 'unknown';
+  }
+}
+
+function rejectPendingAddonPortSession(message, logger) {
+  if (!pendingAddonPortSession) return;
+  void reportPendingAddonPortSession('rejected', { result: { message } }, logger);
+  pendingAddonPortSession = null;
+}
+
+async function reportPendingAddonPortSession(state, details, logger) {
+  const session = pendingAddonPortSession;
+  if (!session) return null;
+  try {
+    const transition = session.transitionPromise.then(() => requestAddonPortSession({
+      action: 'transition',
+      body: { state, ...(details || {}) },
+      claimToken: session.claimToken,
+      sessionId: session.sessionId,
+    }));
+    session.transitionPromise = transition.catch(() => null);
+    return await transition;
+  } catch (error) {
+    if (logger) logger.warn(`failed to report AddonPort session state ${state}`, error);
+    return null;
+  }
+}
+
+function clearPendingAddonPortSession(requestToken) {
+  if (pendingAddonPortSession && pendingAddonPortSession.requestToken === requestToken) {
+    pendingAddonPortSession = null;
+  }
+}
+
+function requestAddonPortSession({ action, body, claimToken, sessionId }) {
+  return new Promise((resolve, reject) => {
+    if (!['claim', 'transition'].includes(action)
+        || !/^[A-Za-z0-9_-]{20,64}$/.test(sessionId)
+        || !/^[A-Za-z0-9_-]{32,128}$/.test(claimToken)) {
+      reject(new Error('Invalid AddonPort session request'));
+      return;
+    }
+    const payload = Buffer.from(JSON.stringify(body || {}), 'utf8');
+    const endpoint = new URL(`/v2/sessions/${sessionId}/${action}`, ADDONPORT_CONNECT_ORIGIN);
+    const request = https.request(endpoint, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${claimToken}`,
+        'Content-Length': payload.length,
+        'Content-Type': 'application/json',
+        'User-Agent': `AddonPort-for-FACEIT/${readAppliedLoaderVersion()}`,
+      },
+    }, (response) => {
+      const chunks = [];
+      let byteCount = 0;
+      response.on('data', (chunk) => {
+        byteCount += chunk.length;
+        if (byteCount > ADDONPORT_RESPONSE_LIMIT) {
+          response.destroy(new Error('AddonPort response exceeded the size limit'));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on('end', () => {
+        const statusCode = response.statusCode || 0;
+        let result;
+        try {
+          result = JSON.parse(Buffer.concat(chunks, byteCount).toString('utf8'));
+        } catch (_error) {
+          reject(new Error('AddonPort returned an invalid JSON response'));
+          return;
+        }
+        if (statusCode < 200 || statusCode >= 300) {
+          const message = result && result.error && typeof result.error.message === 'string'
+            ? result.error.message
+            : `AddonPort request failed with HTTP ${statusCode}`;
+          reject(new Error(message));
+          return;
+        }
+        resolve(result);
+      });
+      response.on('error', reject);
+    });
+    request.setTimeout(ADDONPORT_REQUEST_TIMEOUT, () => request.destroy(new Error('AddonPort request timed out')));
+    request.on('error', reject);
+    request.end(payload);
+  });
 }
 
 function focusFaceitWindow(BrowserWindow) {
@@ -1178,34 +1407,79 @@ async function manageExtensionRequest({
     pageReloadRequired = true;
   } else if (operation === 'install-deeplink') {
     const pending = requirePendingInstallRequest(request.token);
-    if (pending.marketplaceId) {
-      await installMarketplaceExtension({
-        bridge,
-        browserSession,
-        loadedExtensions,
-        logger,
-        marketplaceId: pending.marketplaceId,
-        registry,
-      });
-    } else {
-      await installChromeWebStoreExtension({
-        bridge,
-        browserSession,
-        input: pending.extensionId,
-        loadedExtensions,
-        logger,
-        registry,
-      });
+    try {
+      if (pending.marketplaceId) {
+        await installMarketplaceExtension({
+          bridge,
+          browserSession,
+          loadedExtensions,
+          logger,
+          marketplaceId: pending.marketplaceId,
+          registry,
+        });
+      } else {
+        await installChromeWebStoreExtension({
+          bridge,
+          browserSession,
+          input: pending.extensionId,
+          loadedExtensions,
+          logger,
+          registry,
+        });
+      }
+    } catch (error) {
+      if (isPendingAddonPortRequest(request.token)) {
+        await reportPendingAddonPortSession('failed', {
+          error: {
+            code: 'install_failed',
+            message: error instanceof Error ? error.message : 'Extension installation failed',
+          },
+        }, logger);
+        clearPendingAddonPortSession(request.token);
+      }
+      throw error;
+    }
+    if (isPendingAddonPortRequest(request.token)) {
+      await reportPendingAddonPortSession('completed', null, logger);
+      clearPendingAddonPortSession(request.token);
     }
     pendingInstallRequest = null;
     notifyDeepLinkRenderers(BrowserWindow, null);
     pageReloadRequired = true;
   } else if (operation === 'dismiss-deeplink') {
     requirePendingInstallRequest(request.token);
+    if (isPendingAddonPortRequest(request.token)) {
+      await reportPendingAddonPortSession('rejected', {
+        result: { message: 'Installation cancelled in FACEIT' },
+      }, logger);
+      clearPendingAddonPortSession(request.token);
+    }
     pendingInstallRequest = null;
     notifyDeepLinkRenderers(BrowserWindow, null);
   } else if (operation === 'ack-deeplink') {
     requirePendingNavigationRequest(request.token);
+    if (isPendingAddonPortRequest(request.token)) {
+      await reportPendingAddonPortSession('completed', null, logger);
+      clearPendingAddonPortSession(request.token);
+    }
+    pendingNavigationRequest = null;
+    notifyDeepLinkRenderers(BrowserWindow, null);
+  } else if (operation === 'fail-deeplink') {
+    requirePendingNavigationRequest(request.token);
+    const failures = {
+      not_installed: 'The requested extension is not installed',
+      action_unavailable: 'The requested extension does not have an available action',
+      launch_failed: 'The requested extension action could not be opened',
+    };
+    const code = Object.prototype.hasOwnProperty.call(failures, request.reason)
+      ? request.reason
+      : 'launch_failed';
+    if (isPendingAddonPortRequest(request.token)) {
+      await reportPendingAddonPortSession('failed', {
+        error: { code, message: failures[code] },
+      }, logger);
+      clearPendingAddonPortSession(request.token);
+    }
     pendingNavigationRequest = null;
     notifyDeepLinkRenderers(BrowserWindow, null);
   } else if (operation === 'set-enabled') {
@@ -1264,7 +1538,7 @@ async function manageExtensionRequest({
     if (!clipboard || typeof clipboard.writeText !== 'function') {
       throw new Error('Clipboard is unavailable');
     }
-    clipboard.writeText(`${DEEP_LINK_PROTOCOL}://install/${listing.id}`);
+    clipboard.writeText(`${ADDONPORT_DEEP_LINK_PROTOCOL}://install/${listing.id}`);
   } else if (operation === 'create-shortcut') {
     shortcutPath = createDesktopShortcut({
       app,
@@ -1310,9 +1584,13 @@ function requirePendingInstallRequest(token) {
 
 function requirePendingNavigationRequest(token) {
   if (!pendingNavigationRequest || typeof token !== 'string' || token !== pendingNavigationRequest.token) {
-    throw new Error('The FACEIT Mods link expired; open it again');
+    throw new Error('The AddonPort link expired; open it again');
   }
   return pendingNavigationRequest;
+}
+
+function isPendingAddonPortRequest(token) {
+  return Boolean(pendingAddonPortSession && pendingAddonPortSession.requestToken === token);
 }
 
 function createDesktopShortcut({ app, key, loadedExtensions, logger, registry, shell }) {
@@ -1320,9 +1598,9 @@ function createDesktopShortcut({ app, key, loadedExtensions, logger, registry, s
     throw new Error('Desktop shortcuts are unavailable in this FACEIT runtime');
   }
   const launcher = resolveStableFaceitLauncher();
-  let deepLink = `${DEEP_LINK_PROTOCOL}://open`;
-  let shortcutName = 'FACEIT Mods';
-  let description = 'Open FACEIT Mods';
+  let deepLink = `${ADDONPORT_DEEP_LINK_PROTOCOL}://open`;
+  let shortcutName = 'AddonPort for FACEIT';
+  let description = 'Open AddonPort for FACEIT';
   if (typeof key === 'string' && key.length > 0) {
     const status = loadedExtensions.find((candidate) => candidate && candidate.key === key);
     const entry = status && (status.marketplaceId || status.id)
@@ -1335,9 +1613,9 @@ function createDesktopShortcut({ app, key, loadedExtensions, logger, registry, s
       throw new Error('This extension does not have a stable shortcut target');
     }
     const extensionName = status && status.name ? status.name : (entry.name || 'Extension');
-    deepLink = `${DEEP_LINK_PROTOCOL}://launch/${target}`;
+    deepLink = `${ADDONPORT_DEEP_LINK_PROTOCOL}://launch/${target}`;
     shortcutName = `${extensionName} - FACEIT`;
-    description = `Open ${extensionName} in FACEIT Mods`;
+    description = `Open ${extensionName} in AddonPort for FACEIT`;
   }
   const shortcutPath = path.join(app.getPath('desktop'), `${sanitizeShortcutName(shortcutName)}.lnk`);
   const created = shell.writeShortcutLink(shortcutPath, 'create', {
@@ -1365,7 +1643,7 @@ function sanitizeShortcutName(value) {
     .replace(/[. ]+$/g, '')
     .trim()
     .slice(0, 120);
-  return cleaned || 'FACEIT Mods';
+  return cleaned || 'AddonPort for FACEIT';
 }
 
 function readMarketplaceDocument() {
@@ -1437,7 +1715,7 @@ function createPendingInstallListing({ extensions, marketplace, pending, registr
     name: installed && installed.name ? installed.name : 'Chrome Web Store extension',
     permissions: [
       'Permissions declared by the downloaded extension package',
-      'Only supported FACEIT origins are granted by FACEIT Mods',
+      'Only supported FACEIT origins are granted by AddonPort for FACEIT',
     ],
     source: 'webstore',
     tagline: `Extension id ${pending.extensionId}`,
@@ -2107,7 +2385,7 @@ function formatDiagnosticsReport(state) {
     return `- ${extension.name || extension.id || extension.path || 'Extension'}: ${extension.state || 'unknown'}${extension.version ? ` v${extension.version}` : ''}${extension.error ? ` (${extension.error})` : ''}`;
   });
   return [
-    'FACEIT Extension Loader diagnostics',
+    'AddonPort for FACEIT diagnostics',
     `Generated: ${state && state.diagnostics ? state.diagnostics.generatedAt : new Date().toISOString()}`,
     `Loader: ${state && state.loader && state.loader.version ? state.loader.version : 'unknown'}`,
     `Registry: ${state && state.registryPath ? state.registryPath : 'unknown'}`,

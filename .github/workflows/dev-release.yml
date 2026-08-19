@@ -55,7 +55,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DEV_VERSION: ${{ steps.version.outputs.value }}
         run: |
-          EXE="dist/FACEIT-Extension-Loader-Setup-${DEV_VERSION}-x64.exe"
+          EXE="dist/AddonPort-for-FACEIT-Setup-${DEV_VERSION}-x64.exe"
           CHECKSUM="${EXE}.sha256"
           SHORT_SHA=${GITHUB_SHA::7}
           cat > dev-release-notes.md <<EOF
@@ -75,5 +75,5 @@ jobs:
           gh release create dev-latest "$EXE" "$CHECKSUM" \
             --target "$GITHUB_SHA" \
             --prerelease \
-            --title "Development build ${DEV_VERSION}" \
+            --title "AddonPort for FACEIT development build ${DEV_VERSION}" \
             --notes-file dev-release-notes.md

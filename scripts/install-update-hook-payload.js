@@ -20,7 +20,7 @@ const included = [
 ];
 
 if (!process.argv[2]) {
-  throw new Error('Pass the stable FACEIT Mods payload directory');
+  throw new Error('Pass the stable AddonPort payload directory');
 }
 if (destination === projectRoot || destination.startsWith(`${projectRoot}${path.sep}`)) {
   throw new Error('The update-hook payload destination must be outside the source bundle');

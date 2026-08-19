@@ -1,8 +1,28 @@
 # Changelog
 
-All notable changes to FACEIT Extension Loader are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to AddonPort for FACEIT are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.3.0-beta.24] - 2026-08-19
+
+### Added
+
+- Added the `addonport://` protocol with direct `open`, `install`, and `launch` actions while retaining legacy links.
+- Added AddonPort v2 connect sessions so websites can observe client launch, confirmation, completion, rejection, and failure.
+- Added Repeek to the compatibility catalog and mapped its existing page launcher into the AddonPort dock.
+- Added the versioned `HKCU\Software\AddonPort\FACEIT` integration contract for native applications.
+
+### Changed
+
+- Renamed user-facing Setup, manager, diagnostics, shortcuts, and release artifacts to AddonPort for FACEIT.
+- Made `addonport://` the default for copied install links and newly created shortcuts.
+- Reworked integration documentation around the framework-neutral AddonPort SDK and explicit session state.
+
+### Security
+
+- Kept session bearer tokens in the Electron main process and exposed only opaque confirmation tokens to FACEIT renderers.
+- Restricted connect traffic to a fixed HTTPS origin with bounded requests, responses, and timeouts.
 
 ## [0.3.0-beta.23] - 2026-08-19
 
@@ -46,7 +66,8 @@ All notable changes to FACEIT Extension Loader are documented here. The format f
 - Added the in-client extension manager, Chrome Web Store installation, compatibility bridges, and diagnostics.
 - Added CI, development prereleases, dependency automation, and versioned release builds.
 
-[Unreleased]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.23...HEAD
+[Unreleased]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.24...HEAD
+[0.3.0-beta.24]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.23...v0.3.0-beta.24
 [0.3.0-beta.23]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.22...v0.3.0-beta.23
 [0.3.0-beta.22]: https://github.com/Dimitrymas/faceit-extension-loader/compare/v0.3.0-beta.21...v0.3.0-beta.22
 [0.3.0-beta.21]: https://github.com/Dimitrymas/faceit-extension-loader/releases/tag/v0.3.0-beta.21

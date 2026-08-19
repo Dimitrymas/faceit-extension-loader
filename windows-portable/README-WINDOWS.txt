@@ -1,7 +1,7 @@
-FACEIT Extension Loader - portable fallback
-===========================================
+AddonPort for FACEIT - portable fallback
+=========================================
 
-Use the native FACEIT-Extension-Loader-Setup executable when possible. This
+Use the native AddonPort-for-FACEIT-Setup executable when possible. This
 portable package exists for environments where Setup cannot use FACEIT's
 embedded Electron runtime.
 
@@ -12,7 +12,7 @@ Install
 2. Close FACEIT.
 3. Run 1-patch-faceit.bat as the same Windows user that installed FACEIT.
 4. Start FACEIT normally.
-5. Open Mods from the bottom of the right sidebar.
+5. Open AddonPort from the bottom of the right sidebar.
 
 Do not run the scripts as Administrator. If FACEIT is open, the patcher closes
 FACEIT.exe before changing app.asar. It does not stop or modify FACEIT
@@ -34,10 +34,10 @@ Install links
 
 The patcher registers these links for the current Windows user:
 
-  faceit-mods://open
-  faceit-mods://install/<catalog-id>
-  faceit-mods://install/<chrome-extension-id>
-  faceit-mods://launch/<catalog-id-or-extension-id>
+  addonport://open
+  addonport://install/<catalog-id>
+  addonport://install/<chrome-extension-id>
+  addonport://launch/<catalog-id-or-extension-id>
 
 Install links always require confirmation. Direct Chrome Web Store IDs are
 marked as not reviewed in the bundled catalog. Unknown actions, arbitrary
@@ -45,7 +45,7 @@ package URLs, query parameters, and filesystem paths are rejected.
 
 Native applications can read the installed loader version from:
 
-  HKCU\Software\FACEIT Mods\DisplayVersion
+  HKCU\Software\AddonPort\FACEIT\DisplayVersion
 
 Diagnostics
 -----------
@@ -69,5 +69,5 @@ Restore
 2. Run 4-restore-faceit.bat.
 
 Restore verifies and reinstates the original app.asar, then removes the
-faceit-mods protocol registration and installed-version marker. Extension data
+addonport and legacy faceit-mods protocol registrations and installed-version markers. Extension data
 is left in place for a later reinstall.

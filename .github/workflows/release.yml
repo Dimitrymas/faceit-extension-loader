@@ -54,12 +54,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.value }}
         run: |
-          EXE="dist/FACEIT-Extension-Loader-Setup-${VERSION}-x64.exe"
+          EXE="dist/AddonPort-for-FACEIT-Setup-${VERSION}-x64.exe"
           CHECKSUM="${EXE}.sha256"
           FLAGS=()
           if [[ "$VERSION" == *-* ]]; then FLAGS+=(--prerelease); fi
           gh release create "$GITHUB_REF_NAME" "$EXE" "$CHECKSUM" \
             --verify-tag \
             --notes-file release-notes.md \
-            --title "FACEIT Extension Loader ${GITHUB_REF_NAME}" \
+            --title "AddonPort for FACEIT ${GITHUB_REF_NAME}" \
             "${FLAGS[@]}"

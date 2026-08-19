@@ -3,6 +3,36 @@
   "updatedAt": "2026-08-19",
   "extensions": [
     {
+      "id": "repeek",
+      "extensionId": "mokknliiomknodkdmpcellamkopbdmao",
+      "name": "Repeek",
+      "author": "Repeek",
+      "latestVersion": "5.6.10",
+      "tagline": "Automatic ready-up, team ELO, and match history tools for FACEIT.",
+      "description": "A long-running FACEIT companion that adds configurable queue automation, team ELO context, and ELO changes across match rooms and history.",
+      "category": "Utilities",
+      "compatibility": "tested",
+      "featured": true,
+      "audience": "1M users",
+      "rating": "4.0",
+      "accent": "#f2f2f2",
+      "monogram": "R",
+      "iconUrl": "https://lh3.googleusercontent.com/WSfqlkK9qIT1SiC1vdPhWBk0QfC95gkdyVbWwQGdZTSBbuefz9HUyoixxGhtMLXQ47ktvxqAZynPAukYzLdsOFa4hQ=s128",
+      "storeUrl": "https://chromewebstore.google.com/detail/repeek-formerly-faceit-en/mokknliiomknodkdmpcellamkopbdmao",
+      "pageLauncherSelectors": [
+        "#fc-logo-button"
+      ],
+      "features": [
+        "Automatic ready-up",
+        "Team ELO context",
+        "Match-history ELO changes"
+      ],
+      "permissions": [
+        "Read and change supported FACEIT pages",
+        "Store extension preferences"
+      ]
+    },
+    {
       "id": "faceit-forecast",
       "extensionId": "mpkkcddegpblmobincjkbpgfcbejjbcp",
       "name": "FACEIT Forecast",
@@ -12,16 +42,13 @@
       "description": "A focused match companion that augments FACEIT pages with forecasts and extra player information.",
       "category": "Analytics",
       "compatibility": "tested",
-      "featured": true,
+      "featured": false,
       "audience": "100K+ users",
       "rating": "4.8",
       "accent": "#3aa675",
       "monogram": "F",
       "iconUrl": "https://lh3.googleusercontent.com/t4qtJexnzlISQ1wQ4y5xynWLqwPETijpBI8v3A6aSQ3uyf8Vt0WENoDs_nP61j67pHGjAaFINiwIR75jKKd-lkg8=s128-rj-sc0x00ffffff",
       "storeUrl": "https://chromewebstore.google.com/detail/faceit-forecast/mpkkcddegpblmobincjkbpgfcbejjbcp",
-      "pageLauncherSelectors": [
-        "#fc-logo-button"
-      ],
       "features": [
         "FACEIT match predictions",
         "Extra player and lobby context",
@@ -57,33 +84,6 @@
       "permissions": [
         "Read and change supported FACEIT pages",
         "Show extension notifications",
-        "Store extension preferences"
-      ]
-    },
-    {
-      "id": "heatcheck",
-      "extensionId": "jkobemleofffimnilfgobngcfadpljlh",
-      "name": "Heatcheck",
-      "author": "Heatcheck",
-      "latestVersion": "0.1.2",
-      "tagline": "Quick FACEIT form checks backed by public match data.",
-      "description": "A small community extension that surfaces recent FACEIT form and supporting match data.",
-      "category": "Utilities",
-      "compatibility": "experimental",
-      "featured": false,
-      "audience": "New",
-      "rating": null,
-      "accent": "#d94c58",
-      "monogram": "H",
-      "iconUrl": "https://lh3.googleusercontent.com/WpDX_gQ95u7t7RV4eH5VNGqNP6QxDLhJ3V5Aq-02PeYNlOQewKlXcrhSPvs03u1Ymg31i3tpLnD3UDjYmToRyDFB3gA=s128-rj-sc0x00ffffff",
-      "storeUrl": "https://chromewebstore.google.com/detail/heatcheck/jkobemleofffimnilfgobngcfadpljlh",
-      "features": [
-        "Recent FACEIT form at a glance",
-        "Public FACEIT data integration",
-        "Compact extension action"
-      ],
-      "permissions": [
-        "Read supported FACEIT pages and public FACEIT API data",
         "Store extension preferences"
       ]
     }

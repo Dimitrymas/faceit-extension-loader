@@ -444,7 +444,7 @@ static BOOL write_registry_string(const wchar_t *subkey, const wchar_t *name, co
   LONG status = RegCreateKeyExW(HKEY_CURRENT_USER, subkey, 0, NULL, 0, KEY_SET_VALUE, NULL, &key, NULL);
   if (status != ERROR_SUCCESS) {
     SetLastError((DWORD)status);
-    set_error_from_win32(L"Could not create a FACEIT Mods registry key");
+    set_error_from_win32(L"Could not create an AddonPort registry key");
     return FALSE;
   }
   status = RegSetValueExW(key, name, 0, REG_SZ, (const BYTE *)value,
@@ -452,18 +452,41 @@ static BOOL write_registry_string(const wchar_t *subkey, const wchar_t *name, co
   RegCloseKey(key);
   if (status != ERROR_SUCCESS) {
     SetLastError((DWORD)status);
-    set_error_from_win32(L"Could not write a FACEIT Mods registry value");
+    set_error_from_win32(L"Could not write an AddonPort registry value");
     return FALSE;
   }
   return TRUE;
 }
 
 static BOOL write_product_state(const wchar_t *install_root) {
-  return write_registry_string(L"Software\\FACEIT Mods", L"DisplayName", L"FACEIT Extension Loader")
+  return write_registry_string(L"Software\\FACEIT Mods", L"DisplayName", L"AddonPort for FACEIT")
     && write_registry_string(L"Software\\FACEIT Mods", L"DisplayVersion", APP_VERSION)
     && write_registry_string(L"Software\\FACEIT Mods", L"InstallLocation", install_root)
     && write_registry_string(L"Software\\FACEIT Mods", L"Protocol", L"faceit-mods")
-    && write_registry_string(L"Software\\FACEIT Mods", L"ProtocolVersion", L"1");
+    && write_registry_string(L"Software\\FACEIT Mods", L"ProtocolVersion", L"1")
+    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"DisplayName", L"AddonPort for FACEIT")
+    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"DisplayVersion", APP_VERSION)
+    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"InstallLocation", install_root)
+    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"Protocol", L"addonport")
+    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"ProtocolVersion", L"2")
+    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"LegacyProtocol", L"faceit-mods");
+}
+
+static BOOL register_protocol(const wchar_t *scheme, const wchar_t *description,
+                              const wchar_t *command, const wchar_t *icon) {
+  wchar_t root[PATH_CAPACITY];
+  wchar_t icon_key[PATH_CAPACITY];
+  wchar_t command_key[PATH_CAPACITY];
+  if (FAILED(StringCchPrintfW(root, PATH_CAPACITY, L"Software\\Classes\\%s", scheme))
+      || FAILED(StringCchPrintfW(icon_key, PATH_CAPACITY, L"%s\\DefaultIcon", root))
+      || FAILED(StringCchPrintfW(command_key, PATH_CAPACITY, L"%s\\shell\\open\\command", root))) {
+    set_error(L"The protocol registry path is too long");
+    return FALSE;
+  }
+  return write_registry_string(root, NULL, description)
+    && write_registry_string(root, L"URL Protocol", L"")
+    && write_registry_string(icon_key, NULL, icon)
+    && write_registry_string(command_key, NULL, command);
 }
 
 static BOOL register_deep_link_handler(const wchar_t *install_root) {
@@ -476,7 +499,7 @@ static BOOL register_deep_link_handler(const wchar_t *install_root) {
     return FALSE;
   }
   if (!join_path(handler, PATH_CAPACITY, install_root, L"native\\faceit-mods-handler.exe") || !path_exists(handler)) {
-    set_error(L"The FACEIT Mods deep-link handler is missing from the setup payload");
+    set_error(L"The AddonPort deep-link handler is missing from the setup payload");
     return FALSE;
   }
   if (FAILED(StringCchPrintfW(command, PATH_CAPACITY * 2, L"\"%s\" \"%%1\"", handler))
@@ -484,12 +507,11 @@ static BOOL register_deep_link_handler(const wchar_t *install_root) {
     set_error(L"The deep-link handler command is too long");
     return FALSE;
   }
-  BOOL registered = write_registry_string(L"Software\\Classes\\faceit-mods", NULL, L"URL:FACEIT Mods link")
-    && write_registry_string(L"Software\\Classes\\faceit-mods", L"URL Protocol", L"")
-    && write_registry_string(L"Software\\Classes\\faceit-mods\\DefaultIcon", NULL, icon)
-    && write_registry_string(L"Software\\Classes\\faceit-mods\\shell\\open\\command", NULL, command);
+  BOOL registered = register_protocol(L"faceit-mods", L"URL:AddonPort for FACEIT legacy link", command, icon)
+    && register_protocol(L"addonport", L"URL:AddonPort link", command, icon);
   if (!registered) {
     RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\faceit-mods");
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\addonport");
     return FALSE;
   }
   SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
@@ -585,17 +607,21 @@ static int perform_setup(SetupAction action) {
   if (run_loader_command(action, install_root, faceit_root) != 0) return 14;
   if (action == ACTION_INSTALL && (!register_deep_link_handler(install_root) || !write_product_state(install_root))) {
     RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\faceit-mods");
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\addonport");
     RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\FACEIT Mods");
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\AddonPort\\FACEIT");
     return 15;
   }
   cleanup_legacy_payload_directories();
   set_install_state_marker(action == ACTION_INSTALL);
   if (action == ACTION_RESTORE) {
     RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\faceit-mods");
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\addonport");
     RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\FACEIT Mods");
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\AddonPort\\FACEIT");
   }
   post_progress(100);
-  post_status(action == ACTION_RESTORE ? L"FACEIT was restored." : L"FACEIT Mods is installed.");
+  post_status(action == ACTION_RESTORE ? L"FACEIT was restored." : L"AddonPort for FACEIT is installed.");
   return 0;
 }
 
@@ -804,9 +830,9 @@ static void initialize_preflight(void) {
     StringCchCopyW(g_detail_text, STATUS_CAPACITY, L"Setup did not find a standard FACEIT app-* directory.");
   } else if (g_payload_installed) {
     if (g_installed_version[0]) {
-      StringCchPrintfW(g_status_text, STATUS_CAPACITY, L"Extension Loader %s is installed.", g_installed_version);
+      StringCchPrintfW(g_status_text, STATUS_CAPACITY, L"AddonPort %s is installed.", g_installed_version);
     } else {
-      StringCchCopyW(g_status_text, STATUS_CAPACITY, L"An earlier Extension Loader build is installed.");
+      StringCchCopyW(g_status_text, STATUS_CAPACITY, L"An earlier AddonPort build is installed.");
     }
     StringCchCopyW(g_detail_text, STATUS_CAPACITY, g_payload_current
       ? L"Repair reapplies the current loader without changing extension data."
@@ -1051,7 +1077,7 @@ static void render_window(HWND window, HDC dc) {
 
   if (g_icon) DrawIconEx(memory, scale_value(32), scale_value(23), g_icon, scale_value(48), scale_value(48), 0, NULL, DI_NORMAL);
   RECT title = { scale_value(94), scale_value(24), client.right - scale_value(32), scale_value(51) };
-  draw_text_block(memory, L"FACEIT Extension Loader", g_title_font, color_text(), title,
+  draw_text_block(memory, L"AddonPort for FACEIT", g_title_font, color_text(), title,
                   DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
   wchar_t version[160];
   StringCchPrintfW(version, 160, L"Windows setup %s  /  Unofficial beta", APP_VERSION);

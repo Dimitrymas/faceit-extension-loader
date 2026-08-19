@@ -50,7 +50,16 @@ Native Setup installs a small, stable broker at:
 %LOCALAPPDATA%\FACEIT Mods\current\native\faceit-mods-handler.exe
 ```
 
-The current-user `faceit-mods` protocol points to this broker rather than a versioned FACEIT executable. The broker accepts only the documented `open`, `install`, and `launch` forms, rejects extra arguments and malformed targets, and starts the stable FACEIT launcher. Runtime parsing applies the same restrictions again before creating any manager action.
+The current-user `addonport` protocol and legacy `faceit-mods` protocol point to this broker rather
+than a versioned FACEIT executable. The broker accepts only the documented `open`, `install`,
+`launch`, and AddonPort connect-session forms, rejects extra arguments and malformed targets, and
+starts the stable FACEIT launcher. Runtime parsing applies the same restrictions again before
+creating any manager action.
+
+Connect sessions are claimed over a fixed HTTPS service origin. The claim secret remains in the main
+process and is never forwarded to the FACEIT renderer. The renderer sees only an opaque request token
+needed for the existing confirmation UI; completion, rejection, and failure are serialized back to
+the session service.
 
 Install requests accept only bundled catalog IDs or syntactically valid Chrome Web Store extension IDs. They cannot select arbitrary URLs or local files, and they always require user confirmation.
 
@@ -61,4 +70,5 @@ Install requests accept only bundled catalog IDs or syntactically valid Chrome W
 - Archive extraction rejects traversal, absolute paths, links, and unsupported entry types.
 - Registry writes are limited to the current user.
 - Restore refuses a backup that does not match its recorded SHA-256 value.
+- Connect-session results are UX signals, not process or device attestation.
 - Anti-Cheat, drivers, gameplay processes, and native overlay files are outside the loader boundary.

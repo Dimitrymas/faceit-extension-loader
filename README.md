@@ -1,10 +1,11 @@
-# FACEIT Extension Loader
+# AddonPort for FACEIT
 
 [![CI](https://github.com/Dimitrymas/faceit-extension-loader/actions/workflows/ci.yml/badge.svg)](https://github.com/Dimitrymas/faceit-extension-loader/actions/workflows/ci.yml)
 [![Development build](https://img.shields.io/badge/release-dev--latest-orange)](https://github.com/Dimitrymas/faceit-extension-loader/releases/tag/dev-latest)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 
-Install and manage compatible Chrome extensions inside the FACEIT desktop client.
+Install and manage compatible Chrome extensions inside the FACEIT desktop client. This repository
+contains the FACEIT adapter for the open [AddonPort](https://addonport.dev) protocol.
 
 > [!WARNING]
 > This is an unofficial beta. It is not affiliated with or endorsed by FACEIT. The loader modifies the desktop client's `app.asar`; review the [project boundary](#project-boundary) and keep the restore option available.
@@ -12,9 +13,9 @@ Install and manage compatible Chrome extensions inside the FACEIT desktop client
 ## Install
 
 1. Install the official FACEIT desktop client and close it.
-2. Download the latest `FACEIT-Extension-Loader-Setup-*-x64.exe` from [GitHub Releases](https://github.com/Dimitrymas/faceit-extension-loader/releases).
+2. Download the latest `AddonPort-for-FACEIT-Setup-*-x64.exe` from [GitHub Releases](https://github.com/Dimitrymas/faceit-extension-loader/releases).
 3. Run Setup and select **Install**.
-4. Start FACEIT normally and open **Mods** from the bottom of the right sidebar.
+4. Start FACEIT normally and open **AddonPort** from the bottom of the right sidebar.
 
 Setup installs only for the current Windows user and does not request administrator access. Prerelease builds are currently unsigned, so Windows may show an unknown-publisher warning. Verify the downloaded file against the accompanying `.sha256` file before running it.
 
@@ -30,22 +31,26 @@ The in-client manager provides three main workflows:
 
 Extension action popups open inside the FACEIT window and stay within the visible viewport. Full extension options pages use separate windows. Some extension changes require a FACEIT page refresh before content scripts can run in the current document.
 
-The bundled catalog currently contains compatibility metadata for FACEIT Forecast, PeekStats, and Heatcheck. The catalog improves names, icons, update checks, and install review; it does not restrict manual Chrome Web Store installation.
+The bundled catalog currently contains compatibility metadata for Repeek, FACEIT Forecast, and
+PeekStats. The catalog improves names, icons, update checks, and install review; it does not restrict
+manual Chrome Web Store installation.
 
 ## Install Links
 
-Websites, desktop applications, and shortcuts can open FACEIT Mods directly:
+Websites, desktop applications, and shortcuts can open AddonPort directly:
 
 ```text
-faceit-mods://open
-faceit-mods://install/<catalog-id>
-faceit-mods://install/<chrome-extension-id>
-faceit-mods://launch/<catalog-id-or-extension-id>
+addonport://open
+addonport://install/<catalog-id>
+addonport://install/<chrome-extension-id>
+addonport://launch/<catalog-id-or-extension-id>
 ```
 
 Every install link opens a confirmation screen before downloading. Known catalog entries include reviewed metadata. Direct Chrome Web Store IDs are clearly marked as not reviewed in the catalog.
 
-See [Third-party integration](docs/INTEGRATION.md) for install buttons, browser fallback behavior, native installation detection, and protocol versioning.
+Interactive websites should use the AddonPort SDK and connect-session flow instead of guessing
+whether a protocol handler opened. Static `faceit-mods://` links remain supported for migration.
+See [Third-party integration](docs/INTEGRATION.md) for the full contract.
 
 ## Compatibility
 
@@ -66,7 +71,7 @@ Open the same Setup and select **Restore FACEIT**. Restore:
 
 - verifies the recorded backup before replacing `app.asar`;
 - restores every patched FACEIT `app-*` version that still has a valid backup;
-- removes the `faceit-mods://` registration and installed-version marker;
+- removes the `addonport://` and legacy `faceit-mods://` registrations and installed-version markers;
 - leaves extension data in place in case the loader is installed again.
 
 The patcher creates `app.asar.orig` and a SHA-256 record before its first write. It stages and validates a replacement archive before swapping it into place.
@@ -79,8 +84,8 @@ The loader does not install a background service, watcher, or resident launcher.
 
 | Data | Location |
 | --- | --- |
-| Stable loader payload | `%LOCALAPPDATA%\FACEIT Mods\current` |
-| Installed-version marker | `%LOCALAPPDATA%\FACEIT Mods\installed.marker` |
+| Stable adapter payload | `%LOCALAPPDATA%\FACEIT Mods\current` (legacy path) |
+| Installed-version marker | `%LOCALAPPDATA%\FACEIT Mods\installed.marker` (legacy path) |
 | Extension registry and managed packages | `%APPDATA%\FACEIT\extension-loader` |
 | Runtime log | `%APPDATA%\FACEIT\extension-loader\loader.log` |
 | Setup log | `%LOCALAPPDATA%\FACEIT Mods\current\setup.log` |
@@ -104,8 +109,8 @@ npm run build:win-installer
 The Windows build produces:
 
 ```text
-dist/FACEIT-Extension-Loader-Setup-<version>-x64.exe
-dist/FACEIT-Extension-Loader-Setup-<version>-x64.exe.sha256
+dist/AddonPort-for-FACEIT-Setup-<version>-x64.exe
+dist/AddonPort-for-FACEIT-Setup-<version>-x64.exe.sha256
 ```
 
 For direct patcher development:
@@ -128,4 +133,6 @@ Review [FACEIT's terms](https://www.faceit.com/en/terms) and obtain any permissi
 
 ## License
 
-FACEIT Extension Loader is licensed under [GPL-3.0-only](LICENSE). See [Third-Party Notices](THIRD_PARTY_NOTICES.md) for bundled dependencies and their licenses.
+AddonPort for FACEIT is licensed under [GPL-3.0-only](LICENSE). The framework-neutral AddonPort SDK
+and protocol are maintained separately under MIT. See [Third-Party Notices](THIRD_PARTY_NOTICES.md)
+for bundled dependencies and their licenses.

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "FACEIT Extension Loader Smoke Test",
+  "name": "AddonPort for FACEIT Smoke Test",
   "version": "0.0.1",
   "description": "Smoke test content script for the FACEIT extension loader patch.",
   "content_scripts": [

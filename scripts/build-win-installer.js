@@ -14,9 +14,9 @@ const bundleRoot = projectRoot;
 const sourceRoot = path.join(projectRoot, 'native-installer');
 const iconPath = path.join(sourceRoot, 'faceit-mods.ico');
 const buildRoot = path.join(projectRoot, 'dist', `win-installer-build-${version}`);
-const outputName = `FACEIT-Extension-Loader-Setup-${version}-x64.exe`;
+const outputName = `AddonPort-for-FACEIT-Setup-${version}-x64.exe`;
 const output = path.join(projectRoot, 'dist', outputName);
-const currentOutput = path.join(projectRoot, 'dist', 'FACEIT-Extension-Loader-Setup-x64.exe');
+const currentOutput = path.join(projectRoot, 'dist', 'AddonPort-for-FACEIT-Setup-x64.exe');
 const payloadHeader = path.join(buildRoot, 'payload_manifest.h');
 const resourceScript = path.join(buildRoot, 'installer.rc');
 const resourceObject = path.join(buildRoot, 'installer-resources.o');
@@ -113,7 +113,7 @@ function writePayloadHeader(files) {
   fs.writeFileSync(payloadHeader, [
     '#pragma once',
     '',
-    `#define APP_TITLE L"FACEIT Extension Loader Setup"`,
+    `#define APP_TITLE L"AddonPort for FACEIT Setup"`,
     `#define APP_VERSION L"${escapeCString(version)}"`,
     `#define PAYLOAD_COUNT ${files.length}`,
     '',
@@ -147,11 +147,11 @@ function writeResourceScript(files) {
     '    BLOCK "040904b0"',
     '    BEGIN',
     '      VALUE "CompanyName", "Dimitrymas\\0"',
-    '      VALUE "FileDescription", "FACEIT Extension Loader Setup (unofficial)\\0"',
+    '      VALUE "FileDescription", "AddonPort for FACEIT Setup (unofficial)\\0"',
     `      VALUE "FileVersion", "${version}\\0"`,
-    '      VALUE "InternalName", "FACEITExtensionLoaderSetup\\0"',
+    '      VALUE "InternalName", "AddonPortForFACEITSetup\\0"',
     `      VALUE "OriginalFilename", "${path.basename(output)}\\0"`,
-    '      VALUE "ProductName", "FACEIT Extension Loader Setup\\0"',
+    '      VALUE "ProductName", "AddonPort for FACEIT Setup\\0"',
     `      VALUE "ProductVersion", "${version}\\0"`,
     '    END',
     '  END',

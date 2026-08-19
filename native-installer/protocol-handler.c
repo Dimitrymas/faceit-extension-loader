@@ -12,7 +12,8 @@
 #include <wchar.h>
 
 #define PATH_CAPACITY 4096
-#define DEEP_LINK_PREFIX L"faceit-mods://"
+#define LEGACY_DEEP_LINK_PREFIX L"faceit-mods://"
+#define ADDONPORT_DEEP_LINK_PREFIX L"addonport://"
 
 static BOOL path_exists(const wchar_t *path) {
   DWORD attributes = GetFileAttributesW(path);
@@ -90,10 +91,50 @@ static BOOL valid_target(const wchar_t *value) {
   return TRUE;
 }
 
+static BOOL valid_session_component(const wchar_t *value, size_t minimum, size_t maximum) {
+  size_t length = wcslen(value);
+  if (length < minimum || length > maximum) return FALSE;
+  for (size_t index = 0; index < length; index += 1) {
+    wchar_t character = value[index];
+    if ((character < L'a' || character > L'z')
+        && (character < L'A' || character > L'Z')
+        && (character < L'0' || character > L'9')
+        && character != L'-'
+        && character != L'_') return FALSE;
+  }
+  return TRUE;
+}
+
+static BOOL valid_addonport_link(const wchar_t *value) {
+  wchar_t session_id[65];
+  const wchar_t *session;
+  const wchar_t *separator;
+  size_t session_length;
+  const wchar_t *action;
+  if (!value || wcsncmp(value, ADDONPORT_DEEP_LINK_PREFIX, wcslen(ADDONPORT_DEEP_LINK_PREFIX)) != 0) {
+    return FALSE;
+  }
+  action = value + wcslen(ADDONPORT_DEEP_LINK_PREFIX);
+  if (wcscmp(action, L"open") == 0) return TRUE;
+  if (wcsncmp(action, L"install/", 8) == 0) return valid_target(action + 8);
+  if (wcsncmp(action, L"launch/", 7) == 0) return valid_target(action + 7);
+  if (wcsncmp(action, L"connect/", 8) != 0) return FALSE;
+  session = action + 8;
+  separator = wcschr(session, L'/');
+  if (!separator || wcschr(separator + 1, L'/')) return FALSE;
+  session_length = (size_t)(separator - session);
+  if (session_length < 20 || session_length > 64) return FALSE;
+  wmemcpy(session_id, session, session_length);
+  session_id[session_length] = L'\0';
+  return valid_session_component(session_id, 20, 64)
+    && valid_session_component(separator + 1, 32, 128);
+}
+
 static BOOL valid_deep_link(const wchar_t *value) {
   const wchar_t *action;
-  if (!value || wcsncmp(value, DEEP_LINK_PREFIX, wcslen(DEEP_LINK_PREFIX)) != 0) return FALSE;
-  action = value + wcslen(DEEP_LINK_PREFIX);
+  if (valid_addonport_link(value)) return TRUE;
+  if (!value || wcsncmp(value, LEGACY_DEEP_LINK_PREFIX, wcslen(LEGACY_DEEP_LINK_PREFIX)) != 0) return FALSE;
+  action = value + wcslen(LEGACY_DEEP_LINK_PREFIX);
   if (wcscmp(action, L"open") == 0) return TRUE;
   if (wcsncmp(action, L"install/", 8) == 0) return valid_target(action + 8);
   if (wcsncmp(action, L"launch/", 7) == 0) return valid_target(action + 7);
