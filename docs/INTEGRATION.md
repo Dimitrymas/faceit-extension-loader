@@ -25,7 +25,7 @@ Keep the fallback visible or reveal it after a short best-effort launch check. B
 <button id="install-with-faceit-mods" type="button">Install with FACEIT Mods</button>
 <p id="faceit-mods-fallback" hidden>
   Didn't open?
-  <a href="https://github.com/Dimitrymas/faceit-extension-loader/releases">Install FACEIT Mods</a>
+  <a href="https://github.com/AddonPort/faceit/releases">Install FACEIT Mods</a>
 </p>
 
 <script type="module">
