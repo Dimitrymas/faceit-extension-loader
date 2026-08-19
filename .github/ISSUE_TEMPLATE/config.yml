@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security report
-    url: https://github.com/Dimitrymas/faceit-extension-loader/security/advisories/new
+    url: https://github.com/AddonPort/faceit/security/advisories/new
     about: Report vulnerabilities privately. Do not include account data or tokens in public issues.

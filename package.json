@@ -7,12 +7,12 @@
   "type": "commonjs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Dimitrymas/faceit-extension-loader.git"
+    "url": "git+https://github.com/AddonPort/faceit.git"
   },
   "bugs": {
-    "url": "https://github.com/Dimitrymas/faceit-extension-loader/issues"
+    "url": "https://github.com/AddonPort/faceit/issues"
   },
-  "homepage": "https://github.com/Dimitrymas/faceit-extension-loader#readme",
+  "homepage": "https://github.com/AddonPort/faceit#readme",
   "bin": {
     "faceit-extension-loader": "./bin/faceit-extension-loader.js"
   },
