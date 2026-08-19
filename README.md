@@ -1,7 +1,7 @@
 # FACEIT Extension Loader
 
-[![CI](https://github.com/Dimitrymas/faceit-extension-loader/actions/workflows/ci.yml/badge.svg)](https://github.com/Dimitrymas/faceit-extension-loader/actions/workflows/ci.yml)
-[![Development build](https://img.shields.io/badge/release-dev--latest-orange)](https://github.com/Dimitrymas/faceit-extension-loader/releases/tag/dev-latest)
+[![CI](https://github.com/AddonPort/faceit/actions/workflows/ci.yml/badge.svg)](https://github.com/AddonPort/faceit/actions/workflows/ci.yml)
+[![Development build](https://img.shields.io/badge/release-dev--latest-orange)](https://github.com/AddonPort/faceit/releases/tag/dev-latest)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 
 Install and manage compatible Chrome extensions inside the FACEIT desktop client.
@@ -12,7 +12,7 @@ Install and manage compatible Chrome extensions inside the FACEIT desktop client
 ## Install
 
 1. Install the official FACEIT desktop client and close it.
-2. Download the latest `FACEIT-Extension-Loader-Setup-*-x64.exe` from [GitHub Releases](https://github.com/Dimitrymas/faceit-extension-loader/releases).
+2. Download the latest `FACEIT-Extension-Loader-Setup-*-x64.exe` from [GitHub Releases](https://github.com/AddonPort/faceit/releases).
 3. Run Setup and select **Install**.
 4. Start FACEIT normally and open **Mods** from the bottom of the right sidebar.
 
@@ -58,7 +58,7 @@ See [Third-party integration](docs/INTEGRATION.md) for install buttons, browser 
 
 Implemented compatibility includes browser actions, content scripts, extension pages, `runtime`, `storage.local`, and local-backed `storage.sync`. The loader grants extension access only to supported FACEIT origins. Chrome APIs that depend on a full browser profile, Chrome account, native messaging host, or unsupported Electron surface may not work.
 
-Use the [extension compatibility issue form](https://github.com/Dimitrymas/faceit-extension-loader/issues/new?template=extension.yml) for reproducible compatibility problems.
+Use the [extension compatibility issue form](https://github.com/AddonPort/faceit/issues/new?template=extension.yml) for reproducible compatibility problems.
 
 ## Restore
 
