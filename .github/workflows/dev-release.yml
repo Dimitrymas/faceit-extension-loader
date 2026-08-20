@@ -57,6 +57,8 @@ jobs:
         run: |
           EXE="dist/AddonPort-for-FACEIT-Setup-${DEV_VERSION}-x64.exe"
           CHECKSUM="${EXE}.sha256"
+          CURRENT_EXE="dist/AddonPort-for-FACEIT-Setup-x64.exe"
+          CURRENT_CHECKSUM="${CURRENT_EXE}.sha256"
           SHORT_SHA=${GITHUB_SHA::7}
           cat > dev-release-notes.md <<EOF
           ## Development build
@@ -72,7 +74,7 @@ jobs:
           EOF
           gh release delete dev-latest --cleanup-tag --yes || true
           git push origin :refs/tags/dev-latest || true
-          gh release create dev-latest "$EXE" "$CHECKSUM" \
+          gh release create dev-latest "$EXE" "$CHECKSUM" "$CURRENT_EXE" "$CURRENT_CHECKSUM" \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "AddonPort for FACEIT development build ${DEV_VERSION}" \

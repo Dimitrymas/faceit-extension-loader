@@ -28,7 +28,7 @@ const result = await session.wait({
 });
 ```
 
-The SDK is maintained in the [AddonPort repository](https://github.com/addonport/addonport), with
+The SDK is maintained in the [AddonPort SDK repository](https://github.com/AddonPort/sdk), with
 Web Component, React, and Vue bindings. A session result is a user-experience signal, not device
 attestation and must not be used for authentication or authorization.
 

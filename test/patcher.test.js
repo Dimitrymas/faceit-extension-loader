@@ -909,6 +909,16 @@ test('native Windows setup uses the FACEIT Electron runtime and stays current-us
   assert.match(protocolHandler, /argument_count != 2/);
 });
 
+test('release workflows publish rolling and versioned Setup artifacts', () => {
+  const projectRoot = path.join(__dirname, '..');
+  for (const workflow of ['dev-release.yml', 'release.yml']) {
+    const source = fs.readFileSync(path.join(projectRoot, '.github', 'workflows', workflow), 'utf8');
+    assert.match(source, /AddonPort-for-FACEIT-Setup-\$\{[^}]+\}-x64\.exe/);
+    assert.match(source, /AddonPort-for-FACEIT-Setup-x64\.exe/);
+    assert.match(source, /CURRENT_CHECKSUM/);
+  }
+});
+
 test('bundled marketplace has unique, attributable, compatibility-scoped listings', () => {
   const marketplace = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'mod', 'marketplace.json'), 'utf8'));
   assert.equal(marketplace.schemaVersion, 1);
