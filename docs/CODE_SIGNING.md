@@ -24,13 +24,36 @@ that reputation-based warnings disappear immediately.
 
 ## Release procedure
 
-1. Build and test the exact tagged commit in GitHub Actions.
-2. Download the unsigned Setup artifact and verify its Actions artifact digest.
-3. Sign Setup on a trusted Windows signing machine using SHA-256 and Certum timestamping.
-4. Verify the Authenticode signature and timestamp with `signtool verify /pa /v` and
-   `Get-AuthenticodeSignature`.
-5. Generate a new SHA-256 checksum for the signed binary.
-6. Publish only the signed binary, signed checksum, source tag, and generated release notes.
+1. Push the version tag. GitHub Actions builds and tests the exact commit, then uploads an
+   `unsigned-addonport-for-faceit-<version>` signing candidate for 14 days. It does not create a
+   public versioned release.
+2. Download that artifact on the trusted Windows signing machine with the Windows SDK, Certum
+   SimplySign Desktop, and GitHub CLI installed.
+3. Sign, timestamp, verify, and generate checksums:
+
+   ~~~powershell
+   .\scripts\sign-windows-release.ps1 `
+     -SetupPath .\dist\AddonPort-for-FACEIT-Setup-0.3.0-beta.25-x64.exe `
+     -CertificateThumbprint YOUR_CERTIFICATE_SHA1_THUMBPRINT
+   ~~~
+
+4. Inspect the JSON result, then independently verify both the signature and timestamp:
+
+   ~~~powershell
+   signtool verify /pa /all /v .\dist\AddonPort-for-FACEIT-Setup-0.3.0-beta.25-x64.exe
+   Get-AuthenticodeSignature .\dist\AddonPort-for-FACEIT-Setup-0.3.0-beta.25-x64.exe | Format-List
+   ~~~
+
+5. Publish the signed versioned and rolling assets only from the matching tag checkout:
+
+   ~~~powershell
+   .\scripts\publish-signed-release.ps1 `
+     -Tag v0.3.0-beta.25 `
+     -SetupPath .\dist\AddonPort-for-FACEIT-Setup-0.3.0-beta.25-x64.exe
+   ~~~
+
+The publishing script rejects a missing timestamp, invalid Authenticode status, mismatched filename,
+missing checksum, or checkout that does not match the release tag.
 
 Do not store a card PIN, SimplySign approval material, exported private key, or long-lived signing
 credential in the repository or a general-purpose GitHub Actions secret. Keep manual signing until a

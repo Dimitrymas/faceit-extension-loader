@@ -6,6 +6,9 @@ All notable changes to AddonPort for FACEIT are documented here. The format foll
 
 ### Changed
 
+- Simplify install confirmation to the extension identity, trust source, requested permissions, and
+  the actions needed to continue or cancel.
+- Require timestamped Authenticode signing before a versioned Windows release can be published.
 - Publish rolling Setup and checksum filenames alongside versioned release artifacts so install
   pages can link directly to the current build.
 - Correct the third-party integration guide to point to the standalone AddonPort SDK repository.

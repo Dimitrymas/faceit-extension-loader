@@ -296,11 +296,17 @@ async function render() {
         const root = document.getElementById('faceit-extension-loader-panel-host').shadowRoot;
         return {
           heading: root.querySelector('.screen-title')?.textContent,
-          installButton: Array.from(root.querySelectorAll('.detail-actions .button')).map((button) => button.textContent.trim())[0],
+          actions: Array.from(root.querySelectorAll('.install-actions .button')).map((button) => button.textContent.trim()),
+          source: root.querySelector('.install-source')?.textContent,
+          hasLegacyCopy: Boolean(root.querySelector('.install-request-note, .detail-tagline')),
           tabsHidden: root.querySelector('[data-role="tabs"]')?.style.display === 'none',
         };
       });
-      if (installMetrics.heading !== 'Install request' || installMetrics.installButton !== 'Installed' || !installMetrics.tabsHidden) {
+      if (installMetrics.heading !== 'Install extension'
+        || installMetrics.actions.join(',') !== 'Done'
+        || installMetrics.source !== 'AddonPort catalog · Reviewed for FACEIT'
+        || installMetrics.hasLegacyCopy
+        || !installMetrics.tabsHidden) {
         throw new Error(`${viewport.name} install request is invalid: ${JSON.stringify(installMetrics)}`);
       }
       const installScreenshot = path.join('/tmp', `faceit-mods-install-${viewport.name}.png`);
@@ -337,14 +343,16 @@ async function render() {
       const webstoreMetrics = await page.evaluate(() => {
         const root = document.getElementById('faceit-extension-loader-panel-host').shadowRoot;
         return {
-          compatibility: root.querySelector('.compatibility')?.textContent,
-          installButton: Array.from(root.querySelectorAll('.detail-actions .button')).map((button) => button.textContent.trim())[0],
-          notice: root.querySelector('.install-request-note')?.textContent,
+          actions: Array.from(root.querySelectorAll('.install-actions .button')).map((button) => button.textContent.trim()),
+          source: root.querySelector('.install-source')?.textContent,
+          permissionCount: root.querySelectorAll('.install-permissions li').length,
+          hasLegacyCopy: Boolean(root.querySelector('.install-request-note, .detail-tagline')),
         };
       });
-      if (webstoreMetrics.compatibility !== 'Not reviewed in the catalog'
-        || webstoreMetrics.installButton !== 'Install mod'
-        || !webstoreMetrics.notice.includes('Chrome Web Store')) {
+      if (webstoreMetrics.actions.join(',') !== 'Cancel,Install'
+        || webstoreMetrics.source !== 'Chrome Web Store · Not reviewed by AddonPort'
+        || webstoreMetrics.permissionCount !== 2
+        || webstoreMetrics.hasLegacyCopy) {
         throw new Error(`${viewport.name} direct Store install request is invalid: ${JSON.stringify(webstoreMetrics)}`);
       }
       await page.evaluate(() => {

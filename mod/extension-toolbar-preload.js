@@ -423,7 +423,14 @@ function getDesktopPanelHeight(availableHeight) {
   let desiredHeight;
   if (runtimeState.activeView === 'browse') desiredHeight = 205;
   else if (runtimeState.activeView === 'settings') desiredHeight = 500;
-  else if (runtimeState.activeView === 'install-request') desiredHeight = 520;
+  else if (runtimeState.activeView === 'install-request') {
+    const permissions = runtimeState.latestState && runtimeState.latestState.pendingInstall
+      && runtimeState.latestState.pendingInstall.listing
+      && Array.isArray(runtimeState.latestState.pendingInstall.listing.permissions)
+      ? runtimeState.latestState.pendingInstall.listing.permissions
+      : [];
+    desiredHeight = 305 + Math.min(4, permissions.length) * 28;
+  }
   else desiredHeight = 140 + Math.min(6, Math.max(1, extensionCount)) * 58;
   if (runtimeState.pendingPageReload) desiredHeight += 38;
   return Math.min(520, Math.max(205, Math.min(availableHeight, desiredHeight)));
@@ -480,10 +487,11 @@ function createPanelStyle() {
 .button{align-items:center;appearance:none;background:#ff5500;border:1px solid #ff5500;border-radius:4px;color:#fff;cursor:pointer;display:inline-flex;font-size:12px;font-weight:700;gap:7px;height:32px;justify-content:center;min-width:72px;padding:0 12px;white-space:nowrap}.button:hover{background:#ff6a21;border-color:#ff6a21}.button:disabled{cursor:default;opacity:.48}.button.secondary{background:#252525;border-color:#3a3a3a;color:#e5e5e5}.button.secondary:hover{background:#2d2d2d;border-color:#4b4b4b}.button.ghost{background:transparent;border-color:#3a3a3a;color:#c7c7c7}.button.ghost:hover{background:#222}.button.danger{background:#d74747;border-color:#d74747}.button.danger:hover{background:#e15454}.button svg{height:14px;width:14px}.button .spin,.icon-button .spin{animation:spin 700ms linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.installed-chip{align-items:center;color:#43ca90;display:inline-flex;font-size:11px;font-weight:700;gap:5px;padding:0 4px}.installed-chip svg{height:14px;width:14px}.browse-footer{color:#707070;font-size:10px;line-height:16px;padding:16px 18px 20px;text-align:center}
 .empty{align-items:center;display:flex;flex-direction:column;padding:54px 30px;text-align:center}.empty-icon{align-items:center;background:#202020;border:1px solid #353535;border-radius:6px;color:#858585;display:flex;height:44px;justify-content:center;width:44px}.empty-icon svg{height:21px;width:21px}.empty h2{font-size:15px;line-height:21px;margin:14px 0 4px}.empty p{color:#858585;font-size:12px;line-height:18px;margin:0 0 18px;max-width:280px}.quick-section{border-bottom:1px solid #303030;padding:0 16px 14px}.quick-section .section-label{padding-left:0;padding-right:0}.quick-grid{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding:1px 1px 5px;scrollbar-color:#3b3b3b transparent;scrollbar-width:thin}.quick-action{align-items:center;appearance:none;background:#212121;border:1px solid #343434;border-radius:4px;color:#fff;cursor:pointer;display:flex;flex:0 0 42px;height:42px;justify-content:center;padding:0;position:relative;width:42px}.quick-action:hover{background:#2a2a2a;border-color:#555}.quick-action .mod-icon{border:0;border-radius:3px;flex-basis:30px;height:30px;width:30px}.manager-footer{align-items:center;border-top:1px solid #303030;display:flex;justify-content:space-between;padding:11px 16px}.manager-footer-copy{color:#888;font-size:11px}.installed-row{min-height:66px}.installed-controls{align-items:center;display:flex;flex:0 0 auto;gap:1px}.status-line{align-items:center;display:flex;gap:6px}.status-dot{background:#686868;border-radius:50%;height:6px;width:6px}.status-dot.loaded{background:#43ca90}.status-dot.failed,.status-dot.invalid{background:#e15454}.status-error{color:#e26d6d;font-size:10px;line-height:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.switch{cursor:pointer;display:inline-flex;height:30px;padding:6px 3px;width:38px}.switch input{height:1px;opacity:0;position:absolute;width:1px}.switch-track{background:#3b3b3b;border-radius:9px;height:18px;position:relative;transition:background 120ms;width:32px}.switch-track::after{background:#c8c8c8;border-radius:50%;content:"";height:14px;left:2px;position:absolute;top:2px;transition:transform 120ms,background 120ms;width:14px}.switch input:checked+.switch-track{background:#258654}.switch input:checked+.switch-track::after{background:#fff;transform:translateX(14px)}.switch input:focus-visible+.switch-track{outline:2px solid #ff5500;outline-offset:2px}.switch input:disabled+.switch-track{opacity:.45}.update-button{color:#ff8b6f;min-width:auto;padding:0 9px}
 	.detail-hero{border-bottom:1px solid #29292d;padding:8px 20px 22px}.detail-heading{align-items:center;display:flex;gap:14px}.detail-heading-copy{flex:1;min-width:0}.detail-name{font-size:20px;font-weight:760;line-height:26px;margin:0;overflow-wrap:anywhere}.detail-author{color:#8b8b94;font-size:12px;line-height:18px;margin-top:2px}.compatibility{align-items:center;color:#43ca90;display:flex;font-size:11px;font-weight:700;gap:5px;margin-top:7px}.compatibility.experimental{color:#d5a74d}.compatibility svg{height:14px;width:14px}.detail-tagline{color:#d4d4d8;font-size:14px;line-height:21px;margin:18px 0 0}.detail-description{color:#93939c;font-size:13px;line-height:20px;margin:8px 0 0}.detail-actions{display:flex;gap:8px;margin-top:18px}.detail-actions .button:first-child{flex:1}.install-request-note{align-items:flex-start;background:#211914;border:1px solid #493124;border-radius:4px;color:#d9c1b2;display:flex;font-size:11px;gap:9px;line-height:17px;margin-top:18px;padding:10px 11px}.install-request-note svg{color:#ff8b6f;flex:0 0 auto;height:16px;margin-top:1px;width:16px}.detail-stats{border-bottom:1px solid #29292d;display:grid;grid-template-columns:repeat(3,1fr);padding:15px 20px}.stat{border-right:1px solid #29292d;min-width:0;padding:0 12px}.stat:first-child{padding-left:0}.stat:last-child{border-right:0;padding-right:0}.stat-label{color:#74747d;font-size:10px;line-height:15px;text-transform:uppercase}.stat-value{font-size:13px;font-weight:680;line-height:19px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.detail-section{border-bottom:1px solid #29292d;padding:20px}.detail-section h2{font-size:13px;line-height:18px;margin:0 0 12px}.feature-list,.permission-list{display:grid;gap:10px;list-style:none;margin:0;padding:0}.feature-list li,.permission-list li{align-items:flex-start;color:#a7a7af;display:flex;font-size:12px;gap:9px;line-height:18px}.feature-list svg,.permission-list svg{flex:0 0 auto;height:16px;margin-top:1px;width:16px}.feature-list svg{color:#43ca90}.permission-list svg{color:#73737c}.detail-note{color:#72727b;font-size:11px;line-height:17px;margin:12px 0 0}
+.install-body{display:flex;flex-direction:column;padding:6px 16px 16px}.install-summary{align-items:center;display:flex;gap:12px;padding:4px 0 14px}.install-summary-copy{flex:1;min-width:0}.install-name{font-size:16px;font-weight:720;line-height:22px;margin:0;overflow-wrap:anywhere}.install-source{align-items:center;color:#43ca90;display:flex;font-size:11px;font-weight:650;gap:5px;line-height:17px;margin-top:3px}.install-source.unreviewed{color:#d5a74d}.install-source svg{flex:0 0 auto;height:13px;width:13px}.install-permissions{border-top:1px solid #2d2d2d;padding:13px 0 4px}.install-permissions h2{color:#818181;font-size:10px;font-weight:700;line-height:16px;margin:0 0 8px;text-transform:uppercase}.install-permissions ul{display:grid;gap:7px;list-style:none;margin:0;padding:0}.install-permissions li{align-items:flex-start;color:#aaa;font-size:11px;line-height:17px;padding-left:17px;position:relative}.install-permissions li::before{background:#626262;border-radius:50%;content:"";height:4px;left:3px;position:absolute;top:7px;width:4px}.install-actions{border-top:1px solid #2d2d2d;display:grid;gap:8px;grid-template-columns:1fr 1fr;margin-top:13px;padding-top:13px}.install-actions.single{grid-template-columns:1fr}.install-actions .button{width:100%}
 .settings-group{border-bottom:1px solid #29292d}.settings-group-title{color:#7f7f88;font-size:11px;font-weight:720;padding:18px 20px 8px;text-transform:uppercase}.settings-row{align-items:center;border-top:1px solid #29292d;display:flex;gap:12px;min-height:62px;padding:10px 16px 10px 20px}.settings-row-icon{align-items:center;color:#8f8f98;display:flex;flex:0 0 28px;justify-content:center}.settings-row-icon svg{height:18px;width:18px}.settings-row-copy{flex:1;min-width:0}.settings-row-title{font-size:13px;font-weight:650;line-height:18px}.settings-row-subtitle{color:#7f7f88;font-size:11px;line-height:16px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.log{background:#0b0b0c;border:1px solid #29292d;border-radius:6px;color:#909099;font:10px/16px ui-monospace,SFMono-Regular,Consolas,monospace;margin:12px 20px 20px;max-height:200px;overflow:auto;padding:12px;white-space:pre-wrap;word-break:break-word}
 .confirmation{display:none;inset:0;position:absolute;z-index:5}.confirmation[data-visible="true"]{display:grid;place-items:center}.confirmation-scrim{appearance:none;background:rgba(0,0,0,.72);border:0;inset:0;padding:0;position:absolute}.confirmation-dialog{background:#19191c;border:1px solid #38383d;border-radius:8px;box-shadow:0 18px 50px rgba(0,0,0,.5);padding:20px;position:relative;width:min(340px,calc(100% - 36px))}.confirmation-icon{align-items:center;background:#352020;border-radius:7px;color:#ef6969;display:flex;height:36px;justify-content:center;width:36px}.confirmation-icon svg{height:18px;width:18px}.confirmation-dialog h2{font-size:16px;line-height:22px;margin:14px 0 5px}.confirmation-dialog p{color:#94949d;font-size:12px;line-height:18px;margin:0}.confirmation-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}.confirmation-actions .button{min-width:84px}.toasts{bottom:16px;display:grid;gap:8px;left:16px;pointer-events:none;position:absolute;right:16px;z-index:8}.toast{background:#242428;border:1px solid #3b3b40;border-radius:7px;box-shadow:0 10px 30px rgba(0,0,0,.36);color:#eeeef0;font-size:12px;line-height:18px;padding:11px 13px}.toast.error{border-color:#6b3434;color:#ffc4c4}
-.panel{background:#181818;border:1px solid #3a3a3a;border-radius:6px;box-shadow:0 18px 48px rgba(0,0,0,.55);max-height:calc(100vh - 16px);transform:translate(8px,8px) scale(.985);transform-origin:right bottom}.topbar{background:#1c1c1c;flex-basis:50px;padding:0 10px}.brand-mark{flex-basis:24px;height:24px;width:24px}.brand-mark svg{height:18px;width:18px}.brand-title{font-size:13px}.brand-status{font-size:10px}.icon-button{height:30px;width:30px;flex-basis:30px}.tabs{background:#1c1c1c;flex-basis:38px;gap:18px;padding:0 12px}.tabs button{font-size:11px}.content{flex:1 1 auto}.screen{height:100%;max-height:calc(var(--mods-panel-height,580px) - 89px)}.screen-header{padding:13px 12px 10px}.screen-header.compact{padding:10px 12px}.screen-title{font-size:14px;line-height:20px}.installed-list{border-color:#303030}.installed-row{gap:9px;min-height:58px;padding:7px 8px 7px 12px}.installed-row:hover{background:#202020}.mod-icon{border-radius:5px;flex-basis:36px;font-size:14px;height:36px;width:36px}.row-name{font-size:12px;line-height:17px}.row-meta{font-size:9px;line-height:14px}.installed-controls{gap:0}.installed-controls .icon-button{height:28px;opacity:0;transition:opacity 100ms;width:28px;flex-basis:28px}.installed-row:hover .installed-controls .icon-button,.installed-controls .icon-button:focus-visible{opacity:1}.switch{height:28px;padding:5px 3px;width:36px}.webstore-install{display:flex;gap:8px;padding:4px 12px 14px}.webstore-install input{appearance:none;background:#202020;border:1px solid #3a3a3a;border-radius:4px;color:#f4f4f4;flex:1;font-size:11px;height:34px;min-width:0;outline:0;padding:0 10px}.webstore-install input::placeholder{color:#777}.webstore-install input:focus{border-color:#696969}.webstore-install .button{height:34px;min-width:82px}.empty{padding:38px 24px}.reload-banner{flex-basis:38px;font-size:11px}.toasts{bottom:10px;left:10px;right:10px}.confirmation-dialog{border-radius:6px}.detail-hero{padding:8px 14px 16px}.detail-heading{gap:10px}.detail-name{font-size:16px}.detail-section{padding:14px}
-@media(max-width:639px){.panel{border:1px solid #3a3a3a}.screen-header{padding-left:12px;padding-right:12px}.installed-row{padding-left:12px}.detail-hero,.detail-section{padding-left:12px;padding-right:12px}.installed-controls .icon-button[data-compact-hide="true"]{display:none}}@media(prefers-reduced-motion:reduce){.panel,.switch-track,.switch-track::after{transition:none}}`;
+.panel{background:#181818;border:1px solid #3a3a3a;border-radius:6px;box-shadow:0 18px 48px rgba(0,0,0,.55);max-height:calc(100vh - 16px);transform:translate(8px,8px) scale(.985);transform-origin:right bottom}.topbar{background:#1c1c1c;flex-basis:50px;padding:0 10px}.brand-mark{flex-basis:24px;height:24px;width:24px}.brand-mark svg{height:18px;width:18px}.brand-title{font-size:13px}.brand-status{font-size:10px}.icon-button{height:30px;width:30px;flex-basis:30px}.tabs{background:#1c1c1c;flex-basis:38px;gap:18px;padding:0 12px}.tabs button{font-size:11px}.content{flex:1 1 auto}.screen{height:100%;max-height:calc(var(--mods-panel-height,580px) - 89px)}.screen-header{padding:13px 12px 10px}.screen-header.compact{padding:10px 12px}.screen-title{font-size:14px;line-height:20px}.installed-list{border-color:#303030}.installed-row{gap:9px;min-height:58px;padding:7px 8px 7px 12px}.installed-row:hover{background:#202020}.mod-icon{border-radius:5px;flex-basis:36px;font-size:14px;height:36px;width:36px}.row-name{font-size:12px;line-height:17px}.row-meta{font-size:9px;line-height:14px}.installed-controls{gap:0}.installed-controls .icon-button{height:28px;opacity:0;transition:opacity 100ms;width:28px;flex-basis:28px}.installed-row:hover .installed-controls .icon-button,.installed-controls .icon-button:focus-visible{opacity:1}.switch{height:28px;padding:5px 3px;width:36px}.webstore-install{display:flex;gap:8px;padding:4px 12px 14px}.webstore-install input{appearance:none;background:#202020;border:1px solid #3a3a3a;border-radius:4px;color:#f4f4f4;flex:1;font-size:11px;height:34px;min-width:0;outline:0;padding:0 10px}.webstore-install input::placeholder{color:#777}.webstore-install input:focus{border-color:#696969}.webstore-install .button{height:34px;min-width:82px}.empty{padding:38px 24px}.reload-banner{flex-basis:38px;font-size:11px}.toasts{bottom:10px;left:10px;right:10px}.confirmation-dialog{border-radius:6px}.install-body{padding-left:12px;padding-right:12px}
+@media(max-width:639px){.panel{border:1px solid #3a3a3a}.screen-header{padding-left:12px;padding-right:12px}.installed-row{padding-left:12px}.install-body{padding-left:12px;padding-right:12px}.installed-controls .icon-button[data-compact-hide="true"]{display:none}}@media(prefers-reduced-motion:reduce){.panel,.switch-track,.switch-track::after{transition:none}}`;
   return style;
 }
 
@@ -967,48 +975,63 @@ function renderInstallRequestScreen(state) {
     runtimeState.pendingInstallToken = null;
     setActiveView('installed');
   };
-  screen.appendChild(createBackHeader('Install request', dismiss));
-  const hero = document.createElement('section');
-  hero.className = 'detail-hero';
-  const heading = document.createElement('div');
-  heading.className = 'detail-heading';
-  heading.appendChild(createMarketplaceIcon(listing, true));
-  const headingCopy = document.createElement('div');
-  headingCopy.className = 'detail-heading-copy';
-  headingCopy.append(createTextNode('h1', 'detail-name', listing.name), createTextNode('div', 'detail-author', `by ${listing.author}`), createCompatibilityLabel(listing));
-  heading.appendChild(headingCopy);
-  const notice = document.createElement('div');
-  notice.className = 'install-request-note';
-  notice.innerHTML = iconMarkup('shield');
-  notice.appendChild(document.createTextNode(request.source === 'webstore'
-    ? 'A website requested this installation. The package will come from the Chrome Web Store, but it has not been reviewed in the AddonPort catalog.'
-    : 'A website requested this installation. AddonPort will only install the reviewed catalog package after you confirm.'));
-  hero.append(heading, createTextNode('p', 'detail-tagline', listing.tagline), notice);
+  screen.appendChild(createBackHeader('Install extension', dismiss));
+  const body = document.createElement('section');
+  body.className = 'install-body';
+  const summary = document.createElement('div');
+  summary.className = 'install-summary';
+  summary.appendChild(createMarketplaceIcon(listing, false));
+  const summaryCopy = document.createElement('div');
+  summaryCopy.className = 'install-summary-copy';
+  summaryCopy.appendChild(createTextNode('h1', 'install-name', listing.name));
+  const source = document.createElement('div');
+  source.className = `install-source${request.source === 'webstore' ? ' unreviewed' : ''}`;
+  source.innerHTML = iconMarkup(request.source === 'webstore' ? 'shield-alert' : 'badge-check');
+  source.appendChild(document.createTextNode(request.source === 'webstore'
+    ? 'Chrome Web Store · Not reviewed by AddonPort'
+    : 'AddonPort catalog · Reviewed for FACEIT'));
+  summaryCopy.appendChild(source);
+  summary.appendChild(summaryCopy);
+  body.appendChild(summary);
+
+  const permissions = Array.isArray(listing.permissions) ? listing.permissions.filter(Boolean) : [];
+  if (permissions.length) {
+    const permissionSection = document.createElement('section');
+    permissionSection.className = 'install-permissions';
+    permissionSection.appendChild(createTextNode('h2', null, 'Permissions'));
+    const list = document.createElement('ul');
+    permissions.forEach((permission) => list.appendChild(createTextNode('li', null, permission)));
+    permissionSection.appendChild(list);
+    body.appendChild(permissionSection);
+  }
 
   const actions = document.createElement('div');
-  actions.className = 'detail-actions';
+  actions.className = 'install-actions';
   const alreadyInstalled = Boolean(listing.installed && !listing.updateAvailable);
-  const install = createButton(listing.installed ? (listing.updateAvailable ? 'Update mod' : 'Installed') : 'Install mod', alreadyInstalled ? 'check' : 'download', alreadyInstalled ? 'secondary' : '');
-  install.disabled = alreadyInstalled || runtimeState.busyListings.has(listing.id);
-  install.addEventListener('click', async () => {
-    if (runtimeState.busyListings.has(listing.id)) return;
-    runtimeState.busyListings.add(listing.id);
-    renderPanelState(runtimeState.latestState);
-    const result = await runManagerOperation({ operation: 'install-deeplink', token: request.token }, { successMessage: listing.installed ? `${listing.name} updated.` : `${listing.name} installed.` });
-    runtimeState.busyListings.delete(listing.id);
-    runtimeState.pendingInstallToken = null;
-    if (result) setActiveView('installed');
-    else renderPanelState(runtimeState.latestState);
-  });
-  const cancel = createButton(alreadyInstalled ? 'Done' : 'Cancel', null, alreadyInstalled ? '' : 'secondary');
-  cancel.addEventListener('click', dismiss);
-  actions.append(install, cancel);
-  hero.appendChild(actions);
-  screen.appendChild(hero);
-
-  const permissions = createDetailListSection('Access requested', listing.permissions, 'shield');
-  permissions.appendChild(createTextNode('p', 'detail-note', 'The link cannot change the package source, permissions, or extension files.'));
-  screen.appendChild(permissions);
+  if (alreadyInstalled) {
+    actions.classList.add('single');
+    const done = createButton('Done', 'check');
+    done.addEventListener('click', dismiss);
+    actions.appendChild(done);
+  } else {
+    const cancel = createButton('Cancel', null, 'secondary');
+    cancel.addEventListener('click', dismiss);
+    const install = createButton(listing.installed ? 'Update' : 'Install', listing.installed ? 'refresh-cw' : 'download');
+    install.disabled = runtimeState.busyListings.has(listing.id);
+    install.addEventListener('click', async () => {
+      if (runtimeState.busyListings.has(listing.id)) return;
+      runtimeState.busyListings.add(listing.id);
+      renderPanelState(runtimeState.latestState);
+      const result = await runManagerOperation({ operation: 'install-deeplink', token: request.token }, { successMessage: listing.installed ? `${listing.name} updated.` : `${listing.name} installed.` });
+      runtimeState.busyListings.delete(listing.id);
+      runtimeState.pendingInstallToken = null;
+      if (result) setActiveView('installed');
+      else renderPanelState(runtimeState.latestState);
+    });
+    actions.append(cancel, install);
+  }
+  body.appendChild(actions);
+  screen.appendChild(body);
   return screen;
 }
 

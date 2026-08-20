@@ -6,11 +6,11 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  publish:
-    name: publish-versioned-release
+  build:
+    name: build-unsigned-signing-candidate
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -44,24 +44,22 @@ jobs:
           npm test
           npm run build:win-installer
 
-      - name: Prepare release notes
-        env:
-          VERSION: ${{ steps.version.outputs.value }}
-        run: node scripts/release-notes.js "$VERSION" > release-notes.md
+      - name: Upload unsigned signing candidate
+        uses: actions/upload-artifact@v6
+        with:
+          name: unsigned-addonport-for-faceit-${{ steps.version.outputs.value }}
+          path: dist/AddonPort-for-FACEIT-Setup-${{ steps.version.outputs.value }}-x64.exe
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Publish GitHub Release
+      - name: Summarize manual signing step
         env:
-          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.value }}
         run: |
-          EXE="dist/AddonPort-for-FACEIT-Setup-${VERSION}-x64.exe"
-          CHECKSUM="${EXE}.sha256"
-          CURRENT_EXE="dist/AddonPort-for-FACEIT-Setup-x64.exe"
-          CURRENT_CHECKSUM="${CURRENT_EXE}.sha256"
-          FLAGS=()
-          if [[ "$VERSION" == *-* ]]; then FLAGS+=(--prerelease); fi
-          gh release create "$GITHUB_REF_NAME" "$EXE" "$CHECKSUM" "$CURRENT_EXE" "$CURRENT_CHECKSUM" \
-            --verify-tag \
-            --notes-file release-notes.md \
-            --title "AddonPort for FACEIT ${GITHUB_REF_NAME}" \
-            "${FLAGS[@]}"
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Signing required
+
+          Download the \`unsigned-addonport-for-faceit-${VERSION}\` artifact on the trusted Windows
+          signing machine. Run \`scripts/sign-windows-release.ps1\`, verify the Authenticode timestamp,
+          then publish with \`scripts/publish-signed-release.ps1\`.
+          EOF

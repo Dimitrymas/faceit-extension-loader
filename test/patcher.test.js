@@ -909,14 +909,27 @@ test('native Windows setup uses the FACEIT Electron runtime and stays current-us
   assert.match(protocolHandler, /argument_count != 2/);
 });
 
-test('release workflows publish rolling and versioned Setup artifacts', () => {
+test('release workflows keep development builds separate from signed versioned releases', () => {
   const projectRoot = path.join(__dirname, '..');
-  for (const workflow of ['dev-release.yml', 'release.yml']) {
-    const source = fs.readFileSync(path.join(projectRoot, '.github', 'workflows', workflow), 'utf8');
-    assert.match(source, /AddonPort-for-FACEIT-Setup-\$\{[^}]+\}-x64\.exe/);
-    assert.match(source, /AddonPort-for-FACEIT-Setup-x64\.exe/);
-    assert.match(source, /CURRENT_CHECKSUM/);
-  }
+  const development = fs.readFileSync(path.join(projectRoot, '.github', 'workflows', 'dev-release.yml'), 'utf8');
+  const versioned = fs.readFileSync(path.join(projectRoot, '.github', 'workflows', 'release.yml'), 'utf8');
+  const signScript = fs.readFileSync(path.join(projectRoot, 'scripts', 'sign-windows-release.ps1'), 'utf8');
+  const publishScript = fs.readFileSync(path.join(projectRoot, 'scripts', 'publish-signed-release.ps1'), 'utf8');
+
+  assert.match(development, /AddonPort-for-FACEIT-Setup-\$\{[^}]+\}-x64\.exe/);
+  assert.match(development, /AddonPort-for-FACEIT-Setup-x64\.exe/);
+  assert.match(development, /CURRENT_CHECKSUM/);
+  assert.match(development, /artifact is unsigned/);
+  assert.match(versioned, /build-unsigned-signing-candidate/);
+  assert.match(versioned, /actions\/upload-artifact@v6/);
+  assert.match(versioned, /retention-days: 14/);
+  assert.equal(versioned.includes('gh release create'), false);
+  assert.match(signScript, /signtool\.exe/);
+  assert.match(signScript, /\/fd SHA256 \/tr \$TimestampUrl \/td SHA256/);
+  assert.match(signScript, /Get-AuthenticodeSignature/);
+  assert.match(signScript, /TimeStamperCertificate/);
+  assert.match(publishScript, /Get-AuthenticodeSignature/);
+  assert.match(publishScript, /gh release create/);
 });
 
 test('bundled marketplace has unique, attributable, compatibility-scoped listings', () => {
