@@ -5,15 +5,32 @@ applications, and desktop shortcuts.
 
 ## Website SDK
 
-Use the framework-neutral `@addonport/sdk` package when a page needs to show whether FACEIT opened,
-whether confirmation is pending, and whether an action completed. The service creates a five-minute
-session with separate native and browser secrets; no resident local process or WebSocket is required.
+For a normal extension site, embed the hosted button. It uses the public Connect service by default,
+reports the native confirmation lifecycle, and falls back to a direct install handoff when a session
+cannot be prepared or claimed:
+
+```html
+<script
+  src="https://addonport.dev/sdk/v0.1.0-beta.3/addonport-button.js"
+  integrity="sha384-S44QavU5ux+H2a0FXQRmS7dCTSLCGQf0OnAPrBshmuUV8VHZBkUDEjmGHX5nJIiW"
+  crossorigin="anonymous"
+  defer
+></script>
+
+<addonport-install-button
+  target="abcdefghijklmnopabcdefghijklmnop"
+  label="Install for FACEIT"
+></addonport-install-button>
+```
+
+Use the framework-neutral `@addonport/sdk` client when the page needs custom lifecycle handling.
+The service creates a five-minute session with separate native and browser secrets; no resident
+local process or WebSocket is required.
 
 ```js
 import { AddonPortClient } from "@addonport/sdk";
 
 const client = new AddonPortClient({
-  apiBaseUrl: "https://connect.addonport.dev",
   client: { name: "example-extension-site", version: "1.0.0" },
 });
 
@@ -28,9 +45,10 @@ const result = await session.wait({
 });
 ```
 
-The SDK is maintained in the [AddonPort SDK repository](https://github.com/AddonPort/sdk), with
-Web Component, React, and Vue bindings. A session result is a user-experience signal, not device
-attestation and must not be used for authentication or authorization.
+The SDK is maintained in the [AddonPort SDK repository](https://github.com/AddonPort/sdk), with Web
+Component, React, and Vue bindings. Set `mode="direct"` on the hosted button when no result channel
+is wanted. A session result is a user-experience signal, not device attestation and must not be
+used for authentication or authorization.
 
 ## Static links
 

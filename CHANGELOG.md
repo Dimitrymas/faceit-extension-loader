@@ -9,6 +9,7 @@ All notable changes to AddonPort for FACEIT are documented here. The format foll
 - Publish rolling Setup and checksum filenames alongside versioned release artifacts so install
   pages can link directly to the current build.
 - Correct the third-party integration guide to point to the standalone AddonPort SDK repository.
+- Document the public hosted install button and its session-first, direct-fallback behavior.
 
 ## [0.3.0-beta.24] - 2026-08-19
 
