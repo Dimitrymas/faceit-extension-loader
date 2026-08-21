@@ -126,6 +126,11 @@ See [Architecture](docs/ARCHITECTURE.md), [Code signing policy](docs/CODE_SIGNIN
 [Security](SECURITY.md), [Contributing](CONTRIBUTING.md), and the [Changelog](CHANGELOG.md) before
 changing patch, update, or release behavior.
 
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org). Development builds and signing candidates remain
+explicitly unsigned until the project is accepted and the resulting artifact has passed the
+repository's signing verification.
+
 ## Project Boundary
 
 The loader changes the Electron web-client archive only. It does not modify or interact with FACEIT Anti-Cheat, drivers, gameplay processes, the native overlay, enforcement systems, or FACEIT-owned services outside the normal desktop web client.

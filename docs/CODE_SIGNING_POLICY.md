@@ -2,6 +2,11 @@
 
 This policy covers official Windows Setup releases for AddonPort for FACEIT.
 
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org). This attribution records the provider requested for
+official releases. Development builds and signing candidates remain unsigned until project
+acceptance and successful signature verification.
+
 ## Release controls
 
 - A versioned release must be built by GitHub Actions from a repository tag that exactly matches the

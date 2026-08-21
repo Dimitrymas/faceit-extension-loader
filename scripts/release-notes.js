@@ -26,3 +26,4 @@ if (!notes) {
 process.stdout.write(`${notes}\n\n### Verification\n\n`);
 process.stdout.write(`- [Code signing policy](https://github.com/AddonPort/faceit/blob/v${version}/docs/CODE_SIGNING_POLICY.md)\n`);
 process.stdout.write(`- [Privacy](https://github.com/AddonPort/faceit/blob/v${version}/docs/PRIVACY.md)\n`);
+process.stdout.write(`- Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).\n`);

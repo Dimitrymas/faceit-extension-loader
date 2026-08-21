@@ -16,7 +16,11 @@ Two realistic paths are available:
 - **SignPath Foundation:** free signing for accepted open-source projects with verifiable CI builds.
   It requires an existing public release, documented system changes and removal, a privacy policy,
   repository MFA, explicit signing roles, manual approval for every release, and project acceptance.
-  Do not claim SignPath signing or add its required attribution until the project has been accepted.
+
+The project is applying to use SignPath Foundation for official releases. Free code signing provided
+by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org). Development builds and signing candidates remain
+unsigned until acceptance and successful signature verification.
 
 ## Certum Open Source
 

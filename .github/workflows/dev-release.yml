@@ -70,6 +70,11 @@ jobs:
           - Passed the repository test suite.
           - Built the self-contained Windows x64 Setup and SHA-256 checksum.
 
+          ### Code signing policy
+
+          Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
+          [SignPath Foundation](https://signpath.org). This development artifact remains unsigned.
+
           > This artifact is unsigned, mutable, and intended for testing. Use a versioned release for reproducible distribution.
           EOF
           gh release delete dev-latest --cleanup-tag --yes || true
