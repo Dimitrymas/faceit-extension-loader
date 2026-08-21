@@ -1,6 +1,6 @@
 {
   "name": "faceit-extension-loader",
-  "version": "0.3.0-beta.24",
+  "version": "0.3.0-beta.25",
   "private": true,
   "description": "AddonPort adapter for installing and managing compatible extensions in FACEIT.",
   "license": "GPL-3.0-only",

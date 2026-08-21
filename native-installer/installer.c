@@ -459,17 +459,20 @@ static BOOL write_registry_string(const wchar_t *subkey, const wchar_t *name, co
 }
 
 static BOOL write_product_state(const wchar_t *install_root) {
-  return write_registry_string(L"Software\\FACEIT Mods", L"DisplayName", L"AddonPort for FACEIT")
-    && write_registry_string(L"Software\\FACEIT Mods", L"DisplayVersion", APP_VERSION)
-    && write_registry_string(L"Software\\FACEIT Mods", L"InstallLocation", install_root)
-    && write_registry_string(L"Software\\FACEIT Mods", L"Protocol", L"faceit-mods")
-    && write_registry_string(L"Software\\FACEIT Mods", L"ProtocolVersion", L"1")
-    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"DisplayName", L"AddonPort for FACEIT")
+  BOOL written = write_registry_string(L"Software\\AddonPort\\FACEIT", L"DisplayName", L"AddonPort for FACEIT")
     && write_registry_string(L"Software\\AddonPort\\FACEIT", L"DisplayVersion", APP_VERSION)
     && write_registry_string(L"Software\\AddonPort\\FACEIT", L"InstallLocation", install_root)
     && write_registry_string(L"Software\\AddonPort\\FACEIT", L"Protocol", L"addonport")
-    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"ProtocolVersion", L"2")
-    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"LegacyProtocol", L"faceit-mods");
+    && write_registry_string(L"Software\\AddonPort\\FACEIT", L"ProtocolVersion", L"2");
+  if (written) {
+    HKEY key;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\AddonPort\\FACEIT", 0, KEY_SET_VALUE, &key) == ERROR_SUCCESS) {
+      RegDeleteValueW(key, L"LegacyProtocol");
+      RegCloseKey(key);
+    }
+    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\FACEIT Mods");
+  }
+  return written;
 }
 
 static BOOL register_protocol(const wchar_t *scheme, const wchar_t *description,
@@ -507,13 +510,12 @@ static BOOL register_deep_link_handler(const wchar_t *install_root) {
     set_error(L"The deep-link handler command is too long");
     return FALSE;
   }
-  BOOL registered = register_protocol(L"faceit-mods", L"URL:AddonPort for FACEIT legacy link", command, icon)
-    && register_protocol(L"addonport", L"URL:AddonPort link", command, icon);
+  BOOL registered = register_protocol(L"addonport", L"URL:AddonPort link", command, icon);
   if (!registered) {
-    RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\faceit-mods");
     RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\addonport");
     return FALSE;
   }
+  RegDeleteTreeW(HKEY_CURRENT_USER, L"Software\\Classes\\faceit-mods");
   SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
   return TRUE;
 }
@@ -541,11 +543,11 @@ static void set_install_state_marker(BOOL installed) {
   CloseHandle(file);
 }
 
-static BOOL read_product_state_version(void) {
+static BOOL read_registry_version(const wchar_t *subkey) {
   HKEY key;
   DWORD type = 0;
   DWORD size = sizeof(g_installed_version);
-  LONG status = RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\FACEIT Mods", 0, KEY_QUERY_VALUE, &key);
+  LONG status = RegOpenKeyExW(HKEY_CURRENT_USER, subkey, 0, KEY_QUERY_VALUE, &key);
   if (status != ERROR_SUCCESS) return FALSE;
   status = RegQueryValueExW(key, L"DisplayVersion", NULL, &type, (BYTE *)g_installed_version, &size);
   RegCloseKey(key);
@@ -555,6 +557,11 @@ static BOOL read_product_state_version(void) {
   }
   g_installed_version[(sizeof(g_installed_version) / sizeof(wchar_t)) - 1] = L'\0';
   return TRUE;
+}
+
+static BOOL read_product_state_version(void) {
+  return read_registry_version(L"Software\\AddonPort\\FACEIT")
+    || read_registry_version(L"Software\\FACEIT Mods");
 }
 
 static BOOL read_install_state_marker(void) {

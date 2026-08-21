@@ -32,6 +32,6 @@ reg delete "HKCU\Software\Classes\addonport" /f >nul 2>nul
 reg delete "HKCU\Software\FACEIT Mods" /f >nul 2>nul
 reg delete "HKCU\Software\AddonPort\FACEIT" /f >nul 2>nul
 del /q "%LOCALAPPDATA%\FACEIT Mods\installed.marker" >nul 2>nul
-echo Removed the AddonPort protocol handlers.
+echo Removed the AddonPort protocol handler and stale legacy registration.
 echo.
 pause

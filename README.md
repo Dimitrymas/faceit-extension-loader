@@ -49,8 +49,8 @@ addonport://launch/<catalog-id-or-extension-id>
 Every install link opens a confirmation screen before downloading. Known catalog entries include reviewed metadata. Direct Chrome Web Store IDs are clearly marked as not reviewed in the catalog.
 
 Interactive websites should use the AddonPort SDK and connect-session flow instead of guessing
-whether a protocol handler opened. Static `faceit-mods://` links remain supported for migration.
-See [Third-party integration](docs/INTEGRATION.md) for the full contract.
+whether a protocol handler opened. See [Third-party integration](docs/INTEGRATION.md) for the full
+contract.
 
 ## Compatibility
 
@@ -71,7 +71,7 @@ Open the same Setup and select **Restore FACEIT**. Restore:
 
 - verifies the recorded backup before replacing `app.asar`;
 - restores every patched FACEIT `app-*` version that still has a valid backup;
-- removes the `addonport://` and legacy `faceit-mods://` registrations and installed-version markers;
+- removes the `addonport://` registration, stale legacy registration, and installed-version markers;
 - leaves extension data in place in case the loader is installed again.
 
 The patcher creates `app.asar.orig` and a SHA-256 record before its first write. It stages and validates a replacement archive before swapping it into place.
@@ -121,9 +121,10 @@ node .\bin\faceit-extension-loader.js patch "$env:LOCALAPPDATA\FACEIT"
 node .\bin\faceit-extension-loader.js restore "$env:LOCALAPPDATA\FACEIT"
 ```
 
-See [Architecture](docs/ARCHITECTURE.md), [Code signing](docs/CODE_SIGNING.md),
-[Contributing](CONTRIBUTING.md), and the [Changelog](CHANGELOG.md) before changing patch, update, or
-release behavior.
+See [Architecture](docs/ARCHITECTURE.md), [Code signing policy](docs/CODE_SIGNING_POLICY.md),
+[signing procedure](docs/CODE_SIGNING.md), [Privacy](docs/PRIVACY.md),
+[Security](SECURITY.md), [Contributing](CONTRIBUTING.md), and the [Changelog](CHANGELOG.md) before
+changing patch, update, or release behavior.
 
 ## Project Boundary
 

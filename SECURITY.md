@@ -1,11 +1,24 @@
-# Security Policy
+# Security
 
-## Reporting
+## Supported versions
 
-Use GitHub's private vulnerability reporting for security issues. Do not open a public issue containing exploit details, FACEIT account data, cookies, tokens, private paths, or third-party extension secrets.
+Security fixes are provided for the latest published beta. Development builds and older betas are
+not supported.
 
-This project does not accept features that interact with FACEIT Anti-Cheat, drivers, gameplay processes, the native overlay, or enforcement systems. Reports concerning those components should be sent to FACEIT through its official channels.
+## Reporting a vulnerability
 
-## Supported Versions
+Report vulnerabilities through
+[GitHub private vulnerability reporting](https://github.com/AddonPort/faceit/security/advisories/new).
+Do not open a public issue for a vulnerability that could expose users before a fix is available.
 
-Only the newest tagged prerelease or stable release is supported. Development builds are retained only as the rolling `dev-latest` release.
+Include the affected version, Windows and FACEIT versions, reproduction steps, impact, and any
+relevant sanitized diagnostics. Do not include account credentials, session cookies, extension
+storage, private keys, certificate access codes, or personal data.
+
+Compatibility bugs without a security impact belong in the public issue tracker. Problems in an
+installed third-party extension should be reported to that extension's publisher unless the issue is
+caused by the AddonPort adapter.
+
+FACEIT Anti-Cheat, drivers, gameplay processes, native overlay, and enforcement systems are outside
+this project's scope. Reports concerning those components should be sent to FACEIT through its
+official channels.

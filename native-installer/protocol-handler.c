@@ -12,7 +12,6 @@
 #include <wchar.h>
 
 #define PATH_CAPACITY 4096
-#define LEGACY_DEEP_LINK_PREFIX L"faceit-mods://"
 #define ADDONPORT_DEEP_LINK_PREFIX L"addonport://"
 
 static BOOL path_exists(const wchar_t *path) {
@@ -131,14 +130,7 @@ static BOOL valid_addonport_link(const wchar_t *value) {
 }
 
 static BOOL valid_deep_link(const wchar_t *value) {
-  const wchar_t *action;
-  if (valid_addonport_link(value)) return TRUE;
-  if (!value || wcsncmp(value, LEGACY_DEEP_LINK_PREFIX, wcslen(LEGACY_DEEP_LINK_PREFIX)) != 0) return FALSE;
-  action = value + wcslen(LEGACY_DEEP_LINK_PREFIX);
-  if (wcscmp(action, L"open") == 0) return TRUE;
-  if (wcsncmp(action, L"install/", 8) == 0) return valid_target(action + 8);
-  if (wcsncmp(action, L"launch/", 7) == 0) return valid_target(action + 7);
-  return FALSE;
+  return valid_addonport_link(value);
 }
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE previous, PWSTR command_line, int show_command) {

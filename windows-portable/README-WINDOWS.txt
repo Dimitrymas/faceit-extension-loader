@@ -69,5 +69,5 @@ Restore
 2. Run 4-restore-faceit.bat.
 
 Restore verifies and reinstates the original app.asar, then removes the
-addonport and legacy faceit-mods protocol registrations and installed-version markers. Extension data
+the addonport protocol registration, stale legacy registration, and installed-version markers. Extension data
 is left in place for a later reinstall.

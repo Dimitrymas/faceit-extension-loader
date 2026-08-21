@@ -19,16 +19,33 @@ if ((Split-Path -Leaf $setup) -ne $expectedName) {
   throw "Expected the signed Setup filename to be $expectedName."
 }
 
-$signature = Get-AuthenticodeSignature -LiteralPath $setup
-if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate) {
-  throw 'The release executable must have a valid timestamped Authenticode signature.'
-}
-
 $current = Join-Path (Split-Path -Parent $setup) 'AddonPort-for-FACEIT-Setup-x64.exe'
 $assets = @($setup, "$setup.sha256", $current, "$current.sha256")
 foreach ($asset in $assets) {
   if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) {
     throw "Missing release asset: $asset"
+  }
+}
+
+foreach ($executable in @($setup, $current)) {
+  $signature = Get-AuthenticodeSignature -LiteralPath $executable
+  if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate) {
+    throw "The release executable must have a valid timestamped Authenticode signature: $executable"
+  }
+}
+
+$setupHash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+$currentHash = (Get-FileHash -LiteralPath $current -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($setupHash -ne $currentHash) {
+  throw 'The rolling Setup alias does not match the versioned executable.'
+}
+
+foreach ($executable in @($setup, $current)) {
+  $hash = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()
+  $name = Split-Path -Leaf $executable
+  $recorded = (Get-Content -LiteralPath "$executable.sha256" -Raw).Trim()
+  if ($recorded -ne "$hash  $name") {
+    throw "The checksum file does not match $name."
   }
 }
 

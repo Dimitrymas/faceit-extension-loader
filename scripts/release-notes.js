@@ -23,4 +23,6 @@ if (!notes) {
   throw new Error(`CHANGELOG.md contains an empty section for ${version}`);
 }
 
-process.stdout.write(`${notes}\n`);
+process.stdout.write(`${notes}\n\n### Verification\n\n`);
+process.stdout.write(`- [Code signing policy](https://github.com/AddonPort/faceit/blob/v${version}/docs/CODE_SIGNING_POLICY.md)\n`);
+process.stdout.write(`- [Privacy](https://github.com/AddonPort/faceit/blob/v${version}/docs/PRIVACY.md)\n`);

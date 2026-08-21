@@ -70,8 +70,8 @@ Launch a protocol link only from a user action. Browsers can show their own conf
 Keep a normal Setup download link available because browser focus and timeout heuristics cannot
 reliably detect a registered protocol handler.
 
-Legacy `faceit-mods://open`, `install`, and `launch` links remain accepted during migration. New
-integrations must use `addonport://` or the SDK.
+The adapter accepts only the `addonport://` scheme. Setup removes the former protocol registration
+when upgrading an older beta installation.
 
 ## Native Windows detection
 
@@ -84,12 +84,12 @@ HKCU\Software\AddonPort\FACEIT
   InstallLocation   REG_SZ  <stable payload directory>
   Protocol          REG_SZ  addonport
   ProtocolVersion   REG_SZ  2
-  LegacyProtocol    REG_SZ  faceit-mods
 ```
 
 Treat a missing key as not installed and compare `ProtocolVersion` before relying on connect
 sessions. Do not infer adapter state from a versioned FACEIT `app-*` directory because official
 client updates replace those directories.
 
-Setup continues to write `HKCU\Software\FACEIT Mods` and the legacy installed marker for upgrades
-from older beta builds. New native integrations should use only the AddonPort registry key.
+Setup reads the former product key and installed marker only to recognize upgrades from older beta
+builds. A successful install removes the former key. Native integrations must use only the AddonPort
+registry key.

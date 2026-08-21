@@ -31,7 +31,6 @@ const IPC_DEEP_LINK = 'faceit-extension-loader:deep-link';
 const IPC_ACTION_POPUP_CONTROL = 'faceit-extension-loader:action-popup-control';
 const IPC_ACTION_POPUP_HOST = 'faceit-extension-loader:action-popup-host';
 const IPC_ACTION_POPUP_STATE = 'faceit-extension-loader:action-popup-state';
-const LEGACY_DEEP_LINK_PROTOCOL = 'faceit-mods';
 const ADDONPORT_DEEP_LINK_PROTOCOL = 'addonport';
 const ADDONPORT_CONNECT_ORIGIN = 'https://connect.addonport.dev';
 const ADDONPORT_RESPONSE_LIMIT = 64 * 1024;
@@ -197,9 +196,7 @@ function queueDeepLink(value) {
 
 function isSupportedDeepLink(value) {
   if (typeof value !== 'string') return false;
-  const normalized = value.toLowerCase();
-  return normalized.startsWith(`${LEGACY_DEEP_LINK_PROTOCOL}://`)
-    || normalized.startsWith(`${ADDONPORT_DEEP_LINK_PROTOCOL}://`);
+  return value.toLowerCase().startsWith(`${ADDONPORT_DEEP_LINK_PROTOCOL}://`);
 }
 
 function parseDeepLink(value) {
@@ -207,51 +204,35 @@ function parseDeepLink(value) {
   if (url.username || url.password || url.port || url.search || url.hash) {
     throw new Error('Unsupported AddonPort link');
   }
-  if (url.protocol === `${ADDONPORT_DEEP_LINK_PROTOCOL}:`) {
-    const action = url.hostname.toLowerCase();
-    const segments = url.pathname.split('/').filter(Boolean);
-    if (action === 'open' && segments.length === 0) {
-      return { action, href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://open` };
-    }
-    if (['install', 'launch'].includes(action) && segments.length === 1
-        && /^[a-z0-9-]{1,64}$/.test(segments[0])) {
-      return {
-        action,
-        href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://${action}/${segments[0]}`,
-        target: segments[0],
-      };
-    }
-    if (action !== 'connect' || segments.length !== 2) {
-      throw new Error('Unsupported AddonPort link');
-    }
-    const [sessionId, claimToken] = segments;
-    if (!/^[A-Za-z0-9_-]{20,64}$/.test(sessionId)
-        || !/^[A-Za-z0-9_-]{32,128}$/.test(claimToken)) {
-      throw new Error('The AddonPort session link is malformed');
-    }
-    return {
-      action: 'connect',
-      claimToken,
-      href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://connect/${sessionId}/${claimToken}`,
-      sessionId,
-    };
-  }
-  if (url.protocol !== `${LEGACY_DEEP_LINK_PROTOCOL}:`) {
+  if (url.protocol !== `${ADDONPORT_DEEP_LINK_PROTOCOL}:`) {
     throw new Error('Unsupported AddonPort link');
   }
   const action = url.hostname.toLowerCase();
   const segments = url.pathname.split('/').filter(Boolean);
   if (action === 'open' && segments.length === 0) {
-    return { action, href: `${LEGACY_DEEP_LINK_PROTOCOL}://open` };
+    return { action, href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://open` };
   }
-  if (!['install', 'launch'].includes(action) || segments.length !== 1 || !/^[a-z0-9-]{1,64}$/.test(segments[0])) {
-    throw new Error('The legacy AddonPort link contains an unsupported action or target');
+  if (['install', 'launch'].includes(action) && segments.length === 1
+      && /^[a-z0-9-]{1,64}$/.test(segments[0])) {
+    return {
+      action,
+      href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://${action}/${segments[0]}`,
+      target: segments[0],
+    };
   }
-  const target = segments[0];
+  if (action !== 'connect' || segments.length !== 2) {
+    throw new Error('Unsupported AddonPort link');
+  }
+  const [sessionId, claimToken] = segments;
+  if (!/^[A-Za-z0-9_-]{20,64}$/.test(sessionId)
+      || !/^[A-Za-z0-9_-]{32,128}$/.test(claimToken)) {
+    throw new Error('The AddonPort session link is malformed');
+  }
   return {
-    action,
-    href: `${LEGACY_DEEP_LINK_PROTOCOL}://${action}/${target}`,
-    target,
+    action: 'connect',
+    claimToken,
+    href: `${ADDONPORT_DEEP_LINK_PROTOCOL}://connect/${sessionId}/${claimToken}`,
+    sessionId,
   };
 }
 

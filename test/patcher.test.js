@@ -37,9 +37,11 @@ test('release notes come from the matching changelog section', () => {
 
   if (!/-dev\.\d+$/.test(packageVersion)) assert.equal(releaseVersion, packageVersion);
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /`addonport:\/\/` protocol/);
+  assert.match(result.stdout, /^### /);
   assert.match(result.stdout, /### Security/);
-  assert.equal(result.stdout.includes('0.3.0-beta.22'), false);
+  assert.match(result.stdout, /### Verification/);
+  assert.match(result.stdout, /Code signing policy/);
+  assert.equal(result.stdout.includes('## ['), false);
 
   const missing = spawnSync(process.execPath, [path.join(projectRoot, 'scripts', 'release-notes.js'), '9.9.9'], {
     cwd: projectRoot,
@@ -677,7 +679,7 @@ test('embedded extension actions attach, resize, and detach inside the FACEIT wi
   assert.equal(parentMessages.at(-1).payload.open, false);
 });
 
-test('deep links expose strict legacy and AddonPort actions', () => {
+test('deep links expose only strict AddonPort actions', () => {
   const bootstrap = fs.readFileSync(path.join(__dirname, '..', 'mod', 'bootstrap.js'), 'utf8');
   const helpers = loadBootstrapTestFunctions();
 
@@ -687,20 +689,6 @@ test('deep links expose strict legacy and AddonPort actions', () => {
   assert.match(bootstrap, /requirePendingInstallRequest/);
   assert.match(bootstrap, /requirePendingNavigationRequest/);
   assert.match(bootstrap, /notifyDeepLinkRenderers/);
-  assert.deepEqual({ ...helpers.parseDeepLink('faceit-mods://open') }, {
-    action: 'open',
-    href: 'faceit-mods://open',
-  });
-  assert.deepEqual({ ...helpers.parseDeepLink('faceit-mods://install/faceit-forecast') }, {
-    action: 'install',
-    href: 'faceit-mods://install/faceit-forecast',
-    target: 'faceit-forecast',
-  });
-  assert.deepEqual({ ...helpers.parseDeepLink('faceit-mods://launch/mpkkcddegpblmobincjkbpgfcbejjbcp') }, {
-    action: 'launch',
-    href: 'faceit-mods://launch/mpkkcddegpblmobincjkbpgfcbejjbcp',
-    target: 'mpkkcddegpblmobincjkbpgfcbejjbcp',
-  });
   assert.deepEqual({ ...helpers.parseDeepLink('addonport://open') }, {
     action: 'open',
     href: 'addonport://open',
@@ -733,9 +721,9 @@ test('deep links expose strict legacy and AddonPort actions', () => {
     source: 'webstore',
   });
   assert.throws(() => helpers.resolveDeepLinkInstallTarget('unknown-extension'), /catalog id or Chrome Web Store/);
-  assert.throws(() => helpers.parseDeepLink('faceit-mods://install?id=faceit-forecast'), /Unsupported/);
-  assert.throws(() => helpers.parseDeepLink('faceit-mods://install/%66aceit-forecast'), /unsupported/i);
-  assert.throws(() => helpers.parseDeepLink('faceit-mods://install/%2e%2e%2fforecast'), /unsupported/i);
+  assert.throws(() => helpers.parseDeepLink('faceit-mods://open'), /Unsupported/);
+  assert.throws(() => helpers.parseDeepLink('faceit-mods://install/faceit-forecast'), /Unsupported/);
+  assert.throws(() => helpers.parseDeepLink('faceit-mods://launch/mpkkcddegpblmobincjkbpgfcbejjbcp'), /Unsupported/);
   assert.throws(() => helpers.parseDeepLink(`addonport://connect/${sessionId}/short`), /malformed/i);
   assert.throws(() => helpers.parseDeepLink('addonport://connect/session/token?host=example.com'), /Unsupported/);
   assert.throws(() => helpers.parseDeepLink('addonport://install/%2e%2e%2fforecast'), /Unsupported/);
@@ -825,6 +813,9 @@ test('Windows maintenance scripts warn and close only the FACEIT desktop client'
   assert.match(patchScript, /Join-Path \$root 'FACEIT\.exe'/);
   assert.match(patchScript, /DisplayVersion/);
   assert.match(patchScript, /ProtocolVersion/);
+  assert.match(patchScript, /Remove-Item -Path 'HKCU:\\Software\\Classes\\faceit-mods'/);
+  assert.equal(patchScript.includes("New-Item -Path $handler"), false);
+  assert.equal(patchScript.includes("-Value 'faceit-mods' -PropertyType"), false);
 });
 
 test('native Windows setup uses the FACEIT Electron runtime and stays current-user scoped', () => {
@@ -898,8 +889,10 @@ test('native Windows setup uses the FACEIT Electron runtime and stays current-us
   assert.equal(fs.existsSync(path.join(projectRoot, 'native-installer', 'faceit-mods.ico')), true);
   assert.match(buildScript, /buildProtocolHandler/);
   assert.match(buildScript, /faceit-mods-handler\.exe/);
-  assert.match(protocolHandler, /LEGACY_DEEP_LINK_PREFIX L"faceit-mods:\/\/"/);
   assert.match(protocolHandler, /ADDONPORT_DEEP_LINK_PREFIX L"addonport:\/\/"/);
+  assert.equal(protocolHandler.includes('faceit-mods://'), false);
+  assert.equal(installer.includes('register_protocol(L"faceit-mods"'), false);
+  assert.match(installer, /RegDeleteTreeW\(HKEY_CURRENT_USER, L"Software\\\\Classes\\\\faceit-mods"\)/);
   assert.match(protocolHandler, /connect\//);
   assert.match(protocolHandler, /valid_session_component/);
   assert.match(protocolHandler, /wcscmp\(action, L"open"\)/);
@@ -929,7 +922,13 @@ test('release workflows keep development builds separate from signed versioned r
   assert.match(signScript, /Get-AuthenticodeSignature/);
   assert.match(signScript, /TimeStamperCertificate/);
   assert.match(publishScript, /Get-AuthenticodeSignature/);
+  assert.match(publishScript, /Get-FileHash/);
+  assert.match(publishScript, /rolling Setup alias does not match/);
+  assert.match(publishScript, /checksum file does not match/);
   assert.match(publishScript, /gh release create/);
+  assert.equal(fs.existsSync(path.join(projectRoot, 'docs', 'CODE_SIGNING_POLICY.md')), true);
+  assert.equal(fs.existsSync(path.join(projectRoot, 'docs', 'PRIVACY.md')), true);
+  assert.equal(fs.existsSync(path.join(projectRoot, 'SECURITY.md')), true);
 });
 
 test('bundled marketplace has unique, attributable, compatibility-scoped listings', () => {

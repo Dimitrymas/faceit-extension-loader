@@ -4,6 +4,8 @@ All notable changes to AddonPort for FACEIT are documented here. The format foll
 
 ## [Unreleased]
 
+## [0.3.0-beta.25] - 2026-08-21
+
 ### Changed
 
 - Simplify install confirmation to the extension identity, trust source, requested permissions, and
@@ -13,6 +15,16 @@ All notable changes to AddonPort for FACEIT are documented here. The format foll
   pages can link directly to the current build.
 - Correct the third-party integration guide to point to the standalone AddonPort SDK repository.
 - Document the public hosted install button and its session-first, direct-fallback behavior.
+
+### Removed
+
+- Remove active registration and runtime acceptance of the former beta deep-link scheme while
+  retaining upgrade detection and cleanup for existing installations.
+
+### Security
+
+- Document the release signing controls, maintainer responsibilities, and first-party network and
+  privacy boundaries.
 
 ## [0.3.0-beta.24] - 2026-08-19
 
@@ -76,7 +88,8 @@ All notable changes to AddonPort for FACEIT are documented here. The format foll
 - Added the in-client extension manager, Chrome Web Store installation, compatibility bridges, and diagnostics.
 - Added CI, development prereleases, dependency automation, and versioned release builds.
 
-[Unreleased]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.24...HEAD
+[Unreleased]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.25...HEAD
+[0.3.0-beta.25]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.24...v0.3.0-beta.25
 [0.3.0-beta.24]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.23...v0.3.0-beta.24
 [0.3.0-beta.23]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.22...v0.3.0-beta.23
 [0.3.0-beta.22]: https://github.com/AddonPort/faceit/compare/v0.3.0-beta.21...v0.3.0-beta.22

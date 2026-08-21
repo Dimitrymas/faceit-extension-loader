@@ -50,11 +50,11 @@ Native Setup installs a small, stable broker at:
 %LOCALAPPDATA%\FACEIT Mods\current\native\faceit-mods-handler.exe
 ```
 
-The current-user `addonport` protocol and legacy `faceit-mods` protocol point to this broker rather
-than a versioned FACEIT executable. The broker accepts only the documented `open`, `install`,
-`launch`, and AddonPort connect-session forms, rejects extra arguments and malformed targets, and
-starts the stable FACEIT launcher. Runtime parsing applies the same restrictions again before
-creating any manager action.
+The current-user `addonport` protocol points to this broker rather than a versioned FACEIT
+executable. The broker accepts only the documented `open`, `install`, `launch`, and connect-session
+forms, rejects extra arguments and malformed targets, and starts the stable FACEIT launcher.
+Runtime parsing applies the same restrictions again before creating any manager action. Setup
+removes the former beta protocol registration during install and restore.
 
 Connect sessions are claimed over a fixed HTTPS service origin. The claim secret remains in the main
 process and is never forwarded to the FACEIT renderer. The renderer sees only an opaque request token
